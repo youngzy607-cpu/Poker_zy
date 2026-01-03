@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>德州扑克 HTML 版</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Lobby / Start Screen -->
+    <div id="lobby-overlay" class="lobby-overlay">
+        <div class="lobby-box">
+            <h1>德州扑克</h1>
+            <p>选择电脑对手数量 (1-5)</p>
+            <div class="opponent-selector">
+                <input type="range" id="opponent-count" min="1" max="5" value="3" oninput="document.getElementById('count-display').innerText = this.value">
+                <span id="count-display">3</span>
+            </div>
+            <button id="btn-lobby-start">开始游戏</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="table">
+            <!-- 上部：电脑区域容器 (动态生成) -->
+            <div class="opponents-container" id="opponents-container">
+                <!-- Opponents will be injected here by JS -->
+            </div>
+
+            <!-- 中部：公共牌区域 -->
+            <div class="center-area">
+                <div class="pot-display">
+                    底池: <span id="pot-amount">0</span>
+                </div>
+                <div class="community-cards" id="community-cards">
+                    <!-- 公共牌将显示在这里 -->
+                </div>
+                <div id="message-area" class="message-area"></div>
+            </div>
+
+            <!-- 下部：玩家区域 -->
+            <div class="player-area player" id="player-area">
+                <div class="player-status" id="player-status"></div>
+                <div class="cards" id="player-cards">
+                    <!-- 玩家手牌 -->
+                </div>
+                <div class="player-chips">筹码: <span id="player-chips">1000</span></div>
+                <div class="info-row">
+                    <div class="player-info">玩家 (你)</div>
+                    <div id="player-hand-hint" class="hand-hint"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-fold" disabled>弃牌 (Fold)</button>
+            <button id="btn-check" disabled>过牌 (Check)</button>
+            <button id="btn-call" disabled>跟注 (Call)</button>
+            <div class="raise-control">
+                <button id="btn-raise" disabled>加注 (Raise)</button>
+                <input type="range" id="raise-slider" min="0" max="100" value="0" disabled>
+                <span id="raise-amount-display">20</span>
+                <button id="btn-allin" class="btn-allin" disabled>All-in</button>
+            </div>
+            <button id="btn-restart" style="display:none;">再来一局</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
