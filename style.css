@@ -403,22 +403,30 @@ body {
 .btn-call { background: #3498db; }
 .btn-raise { background: #f1c40f; color: #2c3e50; }
 
-.raise-panel {
-    display: none; /* Hidden by default */
-    background: #222;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #444;
+.raise-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
 }
-.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.btn-adjust { width: 30px; height: 30px; background: #444; border: none; color: white; border-radius: 50%; }
-#raise-slider { flex: 1; }
-.raise-confirm-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-.raise-actions { display: flex; gap: 10px; }
-.btn-allin { background: #d35400; border: none; padding: 5px 15px; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; }
-.btn-confirm { background: #2ecc71; border: none; padding: 5px 15px; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; }
-.btn-cancel { background: #7f8c8d; border: none; padding: 5px 15px; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; }
-#raise-amount-display { color: var(--accent-gold); font-size: 1.2em; font-weight: bold; }
+.raise-actions-row {
+    display: flex;
+    gap: 10px;
+}
+.raise-actions-row button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+}
+.btn-allin { background: #d35400; color: white; }
+.btn-confirm { background: #2ecc71; }
+.btn-cancel { background: #7f8c8d; }
+
+#raise-amount-display { color: var(--accent-gold); font-size: 1.2em; font-weight: bold; min-width: 50px; text-align: center; }
 
 .btn-restart {
     width: 100%;

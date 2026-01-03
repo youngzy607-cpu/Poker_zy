@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>德州扑克 HTML 版</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.7">
 </head>
 <body>
     <!-- Lobby / Start Screen -->
@@ -73,37 +73,38 @@
 
         <!-- 底部操作栏 -->
         <div class="controls-bar">
-            <div class="action-buttons">
+            <!-- Main Actions -->
+            <div class="action-buttons" id="main-actions">
                 <button id="btn-fold" class="btn-action btn-fold" disabled>弃牌</button>
                 <button id="btn-check" class="btn-action btn-check" disabled>过牌</button>
                 <button id="btn-call" class="btn-action btn-call" disabled>跟注</button>
                 <button id="btn-raise" class="btn-action btn-raise" disabled>加注</button>
+                <button id="btn-quick-allin" class="btn-action btn-allin" disabled>ALL IN</button>
             </div>
-            <!-- 加注面板 (默认隐藏，点击加注后显示) -->
-            <div class="raise-panel" id="raise-panel">
+            
+            <!-- Raise Inputs (Replaces Main Actions when Raise is clicked) -->
+            <div class="raise-inputs" id="raise-inputs" style="display:none;">
                  <div class="slider-row">
                      <button class="btn-adjust minus">-</button>
                      <input type="range" id="raise-slider" min="0" max="100" value="0">
                      <button class="btn-adjust plus">+</button>
-                 </div>
-                 <div class="raise-confirm-row">
                      <span id="raise-amount-display">20</span>
-                     <div class="raise-actions">
-                         <button id="btn-allin" class="btn-allin">ALL IN</button>
-                         <button id="btn-confirm-raise" class="btn-confirm">确定</button>
-                         <button id="btn-cancel-raise" class="btn-cancel">取消</button>
-                     </div>
+                 </div>
+                 <div class="raise-actions-row">
+                     <button id="btn-confirm-raise" class="btn-confirm">确定</button>
+                     <button id="btn-cancel-raise" class="btn-cancel">取消</button>
                  </div>
             </div>
+            
             <button id="btn-restart" class="btn-restart" style="display:none;">再来一局</button>
         </div>
     </div>
 
-    <script src="js/card.js?v=1.6"></script>
-    <script src="js/evaluator.js?v=1.6"></script>
-    <script src="js/player.js?v=1.6"></script>
-    <script src="js/ui.js?v=1.6"></script>
-    <script src="js/game.js?v=1.6"></script>
-    <script src="js/main.js?v=1.6"></script>
+    <script src="js/card.js?v=1.7"></script>
+    <script src="js/evaluator.js?v=1.7"></script>
+    <script src="js/player.js?v=1.7"></script>
+    <script src="js/ui.js?v=1.7"></script>
+    <script src="js/game.js?v=1.7"></script>
+    <script src="js/main.js?v=1.7"></script>
 </body>
 </html>

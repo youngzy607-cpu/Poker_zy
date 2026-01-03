@@ -33,11 +33,36 @@ class Game {
         });
         
         document.getElementById('btn-raise').addEventListener('click', () => {
-             const amt = parseInt(slider.value);
-             this.handleAction('raise', amt);
+             // Show raise inputs, hide main actions
+             document.getElementById('main-actions').style.display = 'none';
+             document.getElementById('raise-inputs').style.display = 'flex';
+             // Update slider range again just in case
+             this.updateButtons();
         });
         
-        document.getElementById('btn-allin').addEventListener('click', () => {
+        document.getElementById('btn-confirm-raise').addEventListener('click', () => {
+             const amt = parseInt(slider.value);
+             this.handleAction('raise', amt);
+             document.getElementById('raise-inputs').style.display = 'none';
+             document.getElementById('main-actions').style.display = 'flex';
+        });
+
+        document.getElementById('btn-cancel-raise').addEventListener('click', () => {
+             document.getElementById('raise-inputs').style.display = 'none';
+             document.getElementById('main-actions').style.display = 'flex';
+        });
+        
+        // Plus/Minus buttons
+        document.querySelector('.btn-adjust.minus').addEventListener('click', () => {
+             slider.stepDown();
+             slider.dispatchEvent(new Event('input'));
+        });
+        document.querySelector('.btn-adjust.plus').addEventListener('click', () => {
+             slider.stepUp();
+             slider.dispatchEvent(new Event('input'));
+        });
+        
+        document.getElementById('btn-quick-allin').addEventListener('click', () => {
              // All in means raise to max chips
              const maxRaise = this.getMaxRaiseAmount();
              this.handleAction('raise', maxRaise);
@@ -439,7 +464,7 @@ class Game {
          const slider = document.getElementById('raise-slider');
          const maxRaise = this.getMaxRaiseAmount();
          slider.disabled = !canRaise;
-         document.getElementById('btn-allin').disabled = !canRaise && player.chips > 0; 
+         document.getElementById('btn-quick-allin').disabled = !canRaise && player.chips > 0; 
          
          if (canRaise) {
              slider.min = 20; // Min raise. Technically should be Big Blind or previous raise.
@@ -453,7 +478,7 @@ class Game {
          
          // Special case: if short stack, can't raise normally, but can All-in.
          if (player.chips > 0 && player.chips <= callAmt) {
-              document.getElementById('btn-allin').disabled = false;
+              document.getElementById('btn-quick-allin').disabled = false;
          }
     }
     
@@ -467,7 +492,8 @@ class Game {
         document.getElementById('btn-fold').disabled = true;
         document.getElementById('btn-raise').disabled = true;
         document.getElementById('raise-slider').disabled = true;
-        document.getElementById('btn-allin').disabled = true;
-        document.getElementById('raise-panel').style.display = 'none';
+        document.getElementById('btn-quick-allin').disabled = true;
+        document.getElementById('raise-inputs').style.display = 'none';
+        document.getElementById('main-actions').style.display = 'flex';
     }
 }
