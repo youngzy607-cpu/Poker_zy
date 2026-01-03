@@ -80,8 +80,10 @@ class Game {
     initGame(opponentCount) {
         document.getElementById('lobby-overlay').style.display = 'none';
         
-        // Initialize Audio Context on user gesture
-        if (window.soundManager) soundManager.init();
+        // Initialize Audio Context explicitly on Start button click
+        if (typeof soundManager !== 'undefined') {
+            soundManager.init();
+        }
 
         this.players = [];
         this.players.push(new Player('玩家 (你)', 1000, false));

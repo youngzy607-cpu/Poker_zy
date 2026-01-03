@@ -14,8 +14,11 @@ class SoundManager {
             this.masterGain.connect(this.context.destination);
         }
         if (this.context.state === 'suspended') {
-            this.context.resume();
+            this.context.resume().then(() => {
+                console.log('AudioContext resumed successfully');
+            }).catch(e => console.error(e));
         }
+        return true;
     }
 
     toggleMute() {
@@ -106,4 +109,4 @@ class SoundManager {
     }
 }
 
-const soundManager = new SoundManager();
+// const soundManager = new SoundManager();
