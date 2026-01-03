@@ -1,755 +1,442 @@
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #2c3e50;
-    color: white;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+:root {
+    --table-color: #35654d;
+    --table-border: #1a1a1a;
+    --felt-color: #2c5545;
+    --accent-gold: #f1c40f;
+    --bg-dark: #121212;
+    --card-w: 42px;
+    --card-h: 58px;
+    --avatar-size: 50px;
 }
 
-/* --- Lobby Styles --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-dark);
+    color: white;
+    margin: 0;
+    overflow: hidden; /* Prevent scrolling */
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* --- Lobby --- */
 .lobby-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(44, 62, 80, 0.95);
-    z-index: 2000;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 9999;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
 .lobby-box {
-    background-color: #34495e;
-    padding: 40px;
-    border-radius: 15px;
+    background: #222;
+    padding: 30px;
+    border-radius: 20px;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    border: 2px solid #f1c40f;
+    border: 1px solid var(--accent-gold);
+    box-shadow: 0 0 30px rgba(241, 196, 15, 0.2);
 }
 
-.lobby-box h1 {
-    color: #f1c40f;
-    margin-bottom: 30px;
-}
-
-.opponent-selector {
-    margin: 30px 0;
-    font-size: 1.5em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-}
-
-input[type="range"] {
-    width: 200px;
-}
-
+.lobby-box h1 { color: var(--accent-gold); margin-top: 0; }
+.opponent-selector { margin: 20px 0; font-size: 1.5em; display: flex; align-items: center; justify-content: center; gap: 15px; }
 #btn-lobby-start {
+    background: var(--accent-gold);
+    border: none;
+    padding: 12px 40px;
     font-size: 1.2em;
-    padding: 15px 40px;
+    font-weight: bold;
+    border-radius: 25px;
+    cursor: pointer;
+    color: #000;
 }
 
-
-/* --- Game Container --- */
+/* --- Game Layout --- */
 .game-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 1000px; /* Wider for more players */
-    height: 95vh;
-    justify-content: center;
-}
-
-.table {
-    background-color: #27ae60;
-    border: 15px solid #6b3e23;
-    border-radius: 200px; /* More oval */
-    width: 100%;
-    flex: 1;
     position: relative;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 20px;
-    box-sizing: border-box;
-    box-shadow: inset 0 0 80px rgba(0,0,0,0.6), 0 20px 50px rgba(0,0,0,0.5);
 }
 
-/* --- Common Card Styles --- */
-.card {
-    width: 50px; /* Slightly smaller for multiplayer */
-    height: 75px;
-    background-color: white;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: black;
-    font-weight: bold;
-    font-size: 1em;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-    border: 1px solid #ccc;
-    
-    /* Animation Basics */
-    position: relative;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy pop */
-    transform: scale(1);
-    opacity: 1;
-}
-
-/* Card Entry Animation State */
-.card.dealing {
-    opacity: 0;
-    transform: scale(0.1) translateY(-100px); /* Start small and from above */
-}
-
-.card.red {
-    color: #e74c3c;
-}
-
-.card.back {
-    background-color: #34495e;
-    background-image: repeating-linear-gradient(45deg, #2c3e50 0, #2c3e50 10px, #34495e 10px, #34495e 20px);
-    color: transparent;
-    border: 2px solid #ecf0f1;
-}
-
-/* --- Winner Glow Animation --- */
-@keyframes winner-pulse {
-    0% { box-shadow: 0 0 10px #f1c40f; transform: scale(1); }
-    50% { box-shadow: 0 0 30px #f1c40f, 0 0 10px white; transform: scale(1.1); }
-    100% { box-shadow: 0 0 10px #f1c40f; transform: scale(1); }
-}
-
-.winner-glow {
-    animation: winner-pulse 1.5s infinite;
-    z-index: 100;
-    border: 2px solid #f1c40f !important;
-}
-
-/* --- Chip Animation Element --- */
-.flying-chip {
-    position: fixed;
-    width: 25px;
-    height: 25px;
-    background: radial-gradient(circle at 30% 30%, #f1c40f, #f39c12);
-    border: 2px dashed white;
-    border-radius: 50%;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    z-index: 9999;
-    pointer-events: none;
-    transition: all 0.4s ease-in-out;
-}
-
-/* --- Active Player Highlight --- */
-@keyframes active-pulse {
-    0% { border-color: rgba(241, 196, 15, 0.5); box-shadow: 0 0 5px rgba(241, 196, 15, 0.5); }
-    50% { border-color: rgba(241, 196, 15, 1); box-shadow: 0 0 20px rgba(241, 196, 15, 0.8); }
-    100% { border-color: rgba(241, 196, 15, 0.5); box-shadow: 0 0 5px rgba(241, 196, 15, 0.5); }
-}
-
-.player-area.active {
-    /* filter: drop-shadow(0 0 8px #f1c40f); removed filter for better perf and border control */
-    transform: scale(1.05);
-}
-
-.player-area.active .player-info {
-    color: #f1c40f;
-    text-shadow: 0 0 5px #f1c40f;
-}
-
-/* Add border to active player avatar area if possible, or just rely on text/transform */
-.player-area.active::after {
-    content: '';
+/* Table Background (Vertical Oval) */
+.table-background {
     position: absolute;
-    top: -5px; left: -5px; right: -5px; bottom: -5px;
-    border: 2px solid #f1c40f;
-    border-radius: 10px;
-    animation: active-pulse 1.5s infinite;
+    top: 10%; /* Leave space for top UI if any */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 65%; /* Table occupies middle-upper part */
+    background: var(--table-border);
+    border-radius: 150px; /* Oval shape */
+    padding: 15px; /* Border width */
+    box-sizing: border-box;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.table-felt {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, var(--table-color) 0%, var(--felt-color) 100%);
+    border-radius: 135px;
+    border: 2px solid rgba(255,255,255,0.1);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.table-logo {
+    font-size: 3em;
+    font-weight: 900;
+    color: rgba(0,0,0,0.1);
+    letter-spacing: 5px;
     pointer-events: none;
 }
 
-/* --- Folded State --- */
-.player-area.folded {
-    opacity: 0.5;
-    filter: grayscale(100%);
-    transform: scale(0.95);
-    transition: all 0.3s;
+/* Game Layer (For Absolute Elements) */
+.game-layer {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 65%;
+    pointer-events: none; /* Let clicks pass through to felt if needed, but children need events */
 }
 
-.opponents-container {
-    position: relative;
-    width: 100%;
-    height: 40%; /* Top 40% of table */
-    /* background: rgba(255,255,255,0.1); Debugging */
-}
-
-/* Individual Opponent Wrapper */
-.player-area.opponent {
-    position: absolute; /* Absolute positioning within opponents-container */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 120px;
-    /* transform-origin: center bottom; */
-    transition: all 0.5s ease;
-}
-
-.player-area.opponent .cards {
-    display: flex;
-    gap: 4px;
-    justify-content: center;
-}
-
-.player-area.opponent .player-info {
-    font-size: 0.9em;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    text-shadow: 1px 1px 2px black;
-}
-
-.player-area.opponent .player-chips {
-    font-size: 0.8em;
-    color: #ecf0f1;
-}
-
-.player-area.opponent .player-status {
-    font-size: 0.8em;
-    height: 1.2em;
-    font-weight: bold;
-    color: #f1c40f;
+.game-layer > * {
+    pointer-events: auto;
 }
 
 /* --- Center Area --- */
 .center-area {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 10px;
-    flex: 1;
-    z-index: 10;
+    width: 100%;
 }
 
-.pot-display {
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 5px 20px;
-    border-radius: 20px;
-    font-size: 1.1em;
-    color: #f1c40f;
-    border: 1px solid #f1c40f;
+.pot-container {
+    background: rgba(0,0,0,0.5);
+    padding: 5px 15px;
+    border-radius: 15px;
+    display: flex;
+    gap: 5px;
+    color: var(--accent-gold);
+    font-size: 0.9em;
+    border: 1px solid rgba(241, 196, 15, 0.3);
 }
 
 .community-cards {
     display: flex;
+    gap: 4px;
+    height: var(--card-h);
     justify-content: center;
-    gap: 8px;
-    min-height: 80px;
 }
 
 .message-area {
-    min-height: 24px;
-    font-size: 1.2em;
+    min-height: 20px;
+    font-size: 0.9em;
+    color: #fff;
+    text-shadow: 0 1px 2px #000;
     font-weight: bold;
-    color: #ecf0f1;
-    text-shadow: 1px 1px 4px black;
-    text-align: center;
-    background-color: rgba(0,0,0,0.3);
-    padding: 5px 20px;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 10px;
     border-radius: 10px;
 }
 
+/* --- Seat Styles (Generic) --- */
+.player-seat {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Center point of the seat is its position anchor */
+    transform: translate(-50%, -50%); 
+}
 
-/* --- Player Area (Bottom) --- */
-.player-area.player {
+/* Avatar Circle */
+.avatar-container {
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0; /* Let info-row handle the gap */
-    margin-top: 10px;
 }
 
-.player-area.player .cards {
-    display: flex;
-    gap: 8px;
-}
-
-.player-area.player .card {
-    width: 65px; /* User cards larger */
-    height: 100px;
-}
-
-.player-info {
-    font-weight: bold;
-}
-
-.info-row {
+.avatar {
+    width: var(--avatar-size);
+    height: var(--avatar-size);
+    border-radius: 50%;
+    background: #333;
+    border: 2px solid #aaa;
+    overflow: hidden;
     position: relative;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    z-index: 10;
+    transition: all 0.3s;
+}
+
+.avatar-img {
+    width: 100%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    margin-top: 5px; /* Move gap from player-info to here */
+    font-weight: bold;
+    font-size: 0.8em;
+    background: #444;
+}
+
+.user-avatar { background: #3498db; }
+.opponent-avatar { background: #e74c3c; }
+
+/* Active Player Effect */
+.player-seat.active .avatar {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 15px var(--accent-gold);
+    transform: scale(1.1);
+}
+
+/* Folded Effect */
+.player-seat.folded { opacity: 0.6; filter: grayscale(1); }
+
+/* Info Box */
+.player-info {
+    position: absolute;
+    bottom: -15px;
+    width: 120%;
+    text-align: center;
+    z-index: 12;
+}
+
+.name {
+    font-size: 0.7em;
+    color: #ddd;
+    text-shadow: 0 1px 2px #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: none; /* Hide name to save space, show only chips usually or name on top */
+}
+
+/* Chips Pill */
+.chips-pill {
+    background: #111;
+    color: var(--accent-gold);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 0.75em;
+    border: 1px solid #444;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Status Bubble (Bet/Action) */
+.status-bubble {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: none; /* Hidden by default */
+    white-space: nowrap;
+    z-index: 20;
+    border: 1px solid #666;
+}
+
+/* Role Badges */
+.role-badge {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 15;
+    top: 0;
+    left: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.role-dealer { background: white; color: black; border: 1px solid #999; }
+.role-sb { background: #9b59b6; color: white; border: 1px solid #fff; }
+.role-bb { background: #e67e22; color: white; border: 1px solid #fff; }
+
+/* --- Cards --- */
+.card {
+    width: var(--card-w);
+    height: var(--card-h);
+    background: white;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em; /* Bigger font for small cards */
+    font-weight: bold;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    position: relative;
+}
+.card.red { color: #c0392b; }
+.card.back {
+    background: #2c3e50 repeating-linear-gradient(45deg, #2c3e50 0, #2c3e50 5px, #34495e 5px, #34495e 10px);
+    border: 1px solid #fff;
+}
+.card.dealing { opacity: 0; transform: scale(0.1); }
+
+/* Opponent Cards */
+.player-seat .cards {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 5;
+}
+
+/* Default Opponent Card Position (Right of Avatar) */
+.player-seat .cards {
+    top: 50%;
+    left: 80%; /* Shift right */
+    transform: translateY(-50%) scale(0.8); /* Smaller cards */
+}
+
+/* User Specific Styles */
+#player-area {
+    /* Fixed at bottom center of the GAME LAYER (which is the table) */
+    /* Actually we want user ON the table edge */
+    top: 100%; 
+    left: 50%;
+    width: 100px; /* Larger area */
+    transform: translate(-50%, -40%); /* Pull up slightly */
+}
+
+#player-area .avatar {
+    width: 60px; height: 60px;
+    border: 2px solid #fff;
+}
+
+#player-area .cards {
+    /* User cards on TOP of avatar */
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%) scale(1.2); /* Larger user cards */
+    gap: 4px;
 }
 
 .hand-hint {
     position: absolute;
+    top: -85px;
     left: 50%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 50px; /* Offset from center to the right */
-    
-    background-color: rgba(44, 62, 80, 0.8);
-    border: 1px solid #f1c40f;
-    border-radius: 4px;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
     padding: 2px 8px;
-    color: #f1c40f;
-    font-size: 0.9em;
-    font-weight: bold;
+    border-radius: 4px;
+    font-size: 0.7em;
+    color: #aaa;
     white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    display: none;
-    z-index: 50;
-    pointer-events: none; /* Let clicks pass through */
+    border: 1px solid var(--accent-gold);
 }
 
-/* --- Role Badges (Dealer, SB, BB) --- */
-.role-badge {
+/* --- Controls Bar --- */
+.controls-bar {
     position: absolute;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: bold;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+    padding: 10px;
+    box-sizing: border-box;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 60;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    border: 1px solid #fff;
-    /* Default positioning relative to player-area */
-    top: -10px;
-    right: -10px;
-}
-
-.role-dealer {
-    background-color: #fff;
-    color: #000;
-}
-
-.role-sb {
-    background-color: #8e44ad;
-    color: #fff;
-}
-
-.role-bb {
-    background-color: #f39c12;
-    color: #fff;
-}
-
-
-/* Remove arrow */
-.hand-hint::after {
-    content: none;
-}
-.controls {
-    margin-top: 20px;
-    display: flex;
+    flex-direction: column;
     gap: 10px;
     z-index: 100;
-    padding: 10px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 15px;
-    align-items: center;
 }
 
-.raise-control {
+.action-buttons {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(0,0,0,0.2);
-    padding: 5px 10px;
-    border-radius: 8px;
+    gap: 10px;
+    justify-content: space-between;
 }
 
-#raise-slider {
-    width: 100px;
-}
-
-#raise-amount-display {
-    color: #f1c40f;
-    font-weight: bold;
-    min-width: 30px;
-    text-align: right;
-}
-
-.btn-allin {
-    background-color: #e67e22;
-    font-size: 0.9em;
-    padding: 8px 12px;
-}
-
-button {
-    padding: 10px 20px;
-    font-size: 1em;
-    cursor: pointer;
-    background-color: #f1c40f;
+.btn-action {
+    flex: 1;
+    padding: 15px 0;
     border: none;
-    border-radius: 5px;
-    color: #2c3e50;
+    border-radius: 8px;
     font-weight: bold;
-    transition: all 0.2s;
-    box-shadow: 0 4px 0 #d35400;
-}
-
-button:active:not(:disabled) {
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #d35400;
-}
-
-button:disabled {
-    background-color: #7f8c8d;
-    box-shadow: none;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-button:hover:not(:disabled) {
-    background-color: #f39c12;
-}
-
-#btn-restart {
-    background-color: #e74c3c;
-    box-shadow: 0 4px 0 #c0392b;
+    font-size: 1em;
     color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2);
 }
-#btn-restart:hover {
-    background-color: #c0392b;
+.btn-action:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
+.btn-action:disabled { background: #333; color: #666; box-shadow: none; transform: none; }
+
+.btn-fold { background: #e74c3c; }
+.btn-check { background: #7f8c8d; }
+.btn-call { background: #3498db; }
+.btn-raise { background: #f1c40f; color: #2c3e50; }
+
+.raise-panel {
+    display: none; /* Hidden by default */
+    background: #222;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.btn-adjust { width: 30px; height: 30px; background: #444; border: none; color: white; border-radius: 50%; }
+#raise-slider { flex: 1; }
+.raise-confirm-row { display: flex; justify-content: space-between; align-items: center; }
+.btn-allin { background: #d35400; border: none; padding: 5px 15px; color: white; font-weight: bold; border-radius: 4px; }
+#raise-amount-display { color: var(--accent-gold); font-size: 1.2em; font-weight: bold; }
+
+.btn-restart {
+    width: 100%;
+    padding: 15px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    font-size: 1.2em;
+    font-weight: bold;
 }
 
-/* --- Mobile Responsiveness (Vertical/Portrait) --- */
-@media (max-width: 768px) {
-    body {
-        overscroll-behavior: none;
-        background-color: #27ae60;
-    }
+/* Winner Animation */
+@keyframes winner-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); }
+    70% { box-shadow: 0 0 0 20px rgba(241, 196, 15, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+}
+.winner-glow .avatar {
+    animation: winner-pulse 1.5s infinite;
+    border-color: var(--accent-gold);
+}
 
-    .game-container {
-        height: 100vh;
-        height: 100dvh; /* Better mobile support */
-        max-width: none;
-        padding: 0;
-        justify-content: flex-start; /* Changed from space-between to allow better control */
-        overflow: hidden;
-        position: relative;
-    }
-
-    .table {
-        border: none;
-        border-radius: 0;
-        box-shadow: none;
-        width: 100%;
-        height: 100%;
-        padding: 0 0 160px 0; /* Increased padding bottom for fixed controls */
-        background: transparent;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between; /* Distribute space */
-    }
-
-    /* --- Top: Opponents --- */
-    .opponents-container {
-        position: relative;
-        height: auto;
-        min-height: 110px; /* Reduced height */
-        width: 100%;
-        display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto; /* Allow scrolling if 5 players */
-        justify-content: flex-start; /* Align left to work with padding */
-        align-items: flex-start;
-        padding: 10px 10px 0 10px; /* Add side padding */
-        gap: 8px; /* More gap */
-        background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
-        z-index: 10;
-        /* Scroll snap for better feel */
-        scroll-snap-type: x mandatory;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Override JS inline styles */
-    .player-area.opponent {
-        position: relative !important;
-        top: auto !important;
-        left: auto !important;
-        transform: none !important;
-        width: 70px; /* Slightly narrower */
-        margin: 0;
-        flex-shrink: 0;
-        scroll-snap-align: start;
-    }
-
-    .player-area.opponent .cards {
-        transform: scale(0.7); /* Smaller cards */
-        margin-bottom: -5px;
-        transform-origin: top center;
-    }
-
-    .player-area.opponent .card {
-        width: 50px; 
-        height: 75px;
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
-    }
-
-    .player-area.opponent .player-info {
-        font-size: 0.7em;
-        width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        margin-bottom: 2px;
-        text-align: center;
-    }
-
-    .player-area.opponent .player-chips {
-        font-size: 0.6em;
-        margin-top: -15px; /* Pull up closer to cards */
-        background: rgba(0,0,0,0.6);
-        padding: 1px 4px;
-        border-radius: 4px;
-        z-index: 2;
-        position: relative;
-    }
-    
-    .player-area.opponent .player-status {
-        position: absolute;
-        top: 25px;
-        width: 100%;
-        text-align: center;
-        text-shadow: 0 0 3px black;
-        z-index: 20;
-        font-size: 0.7em;
-        background: rgba(0,0,0,0.4);
-        border-radius: 2px;
-    }
-
-    /* --- Center: Community Cards --- */
-    .center-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        margin: 10px 0;
-        width: 100%;
-    }
-
-    .pot-display {
-        font-size: 1.2em;
-        background: rgba(0,0,0,0.7);
-        border: 1px solid #f1c40f;
-        padding: 5px 20px;
-        border-radius: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
-
-    .community-cards {
-        gap: 5px;
-        min-height: 70px;
-        padding: 0 5px;
-        flex-wrap: nowrap; /* Prevent wrapping */
-    }
-
-    .community-cards .card {
-        width: 45px;
-        height: 68px;
-        font-size: 0.9em;
-        flex-shrink: 0;
-    }
-    
-    .message-area {
-        font-size: 0.9em;
-        background: rgba(0,0,0,0.5);
-        width: 80%;
-        align-self: center;
-        margin-top: 5px;
-        min-height: 25px;
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* --- Bottom: Player --- */
-    .player-area.player {
-        margin-top: 0;
-        margin-bottom: 10px; /* Reduced margin */
-        z-index: 10;
-        width: 100%;
-        padding-bottom: 0;
-    }
-
-    .player-area.player .cards {
-        gap: 5px;
-    }
-
-    .player-area.player .card {
-        width: 60px;
-        height: 90px;
-        font-size: 1.1em;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.2); /* Highlight user cards */
-    }
-
-    .player-area.player .player-info {
-        font-size: 1em;
-        margin-bottom: 5px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    }
-    
-    .hand-hint {
-        position: absolute;
-        top: -40px; /* Move higher */
-        left: 50%;
-        transform: translateX(-50%);
-        margin: 0;
-        width: max-content;
-        background: rgba(44, 62, 80, 0.95);
-        border: 1px solid #f1c40f;
-        z-index: 20;
-        font-size: 0.85em;
-        padding: 4px 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-    }
-
-    .info-row {
-        position: static;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    /* --- Fixed Bottom Controls --- */
-    .controls {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: auto;
-        background: #2c3e50; /* Darker background */
-        border-top: 2px solid #f1c40f;
-        padding: 10px 10px 25px 10px; /* More bottom padding */
-        box-sizing: border-box;
-        z-index: 3000;
-        
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: auto auto;
-        gap: 8px;
-        margin: 0;
-        border-radius: 0;
-        box-shadow: 0 -5px 20px rgba(0,0,0,0.6);
-    }
-
-    /* Button Styling */
-    button {
-        padding: 14px 0; /* Taller buttons */
-        font-size: 1em;
-        width: 100%;
-        border-radius: 8px;
-        margin: 0;
-        min-width: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-weight: bold;
-    }
-
-    #btn-fold { grid-column: 1; background-color: #c0392b; color: white; box-shadow: 0 3px 0 #96281b; }
-    #btn-check { grid-column: 2; background-color: #7f8c8d; color: white; box-shadow: 0 3px 0 #616a6b; }
-    #btn-call { grid-column: 3; background-color: #2980b9; color: white; box-shadow: 0 3px 0 #1f618d; }
-    
-    #btn-fold:active { box-shadow: 0 1px 0 #96281b; transform: translateY(2px); }
-    #btn-check:active { box-shadow: 0 1px 0 #616a6b; transform: translateY(2px); }
-    #btn-call:active { box-shadow: 0 1px 0 #1f618d; transform: translateY(2px); }
-
-    /* Raise Row */
-    .raise-control {
-        grid-column: 1 / -1; /* Full width */
-        display: flex;
-        gap: 8px;
-        background: rgba(0,0,0,0.2);
-        padding: 8px;
-        border-radius: 8px;
-        align-items: center;
-        margin-top: 5px;
-    }
-
-    #btn-raise {
-        flex: 1;
-        background-color: #f1c40f;
-        color: #2c3e50;
-        box-shadow: 0 3px 0 #d35400;
-        padding: 10px 0;
-    }
-    
-    .btn-allin {
-        width: auto;
-        padding: 0 15px;
-        background-color: #d35400;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 3px 0 #a04000;
-        font-size: 0.9em;
-    }
-
-    #raise-slider {
-        flex: 2;
-        height: 25px;
-        margin: 0 5px;
-    }
-    
-    #raise-amount-display {
-        min-width: 35px;
-        text-align: center;
-        font-size: 1.1em;
-    }
-
-    /* Restart Button Overlay */
-    #btn-restart {
-        grid-column: 1 / -1;
-        grid-row: 1 / -1;
-        z-index: 3001;
-        height: 100%;
-        font-size: 1.5em;
-        background-color: #e74c3c;
-    }
-
-    /* Lobby Adjustments */
-    .lobby-box {
-        width: 85%;
-        padding: 30px 20px;
-    }
-    
-    .opponent-selector input {
-        width: 100%;
-        max-width: 200px;
-    }
-    
-    /* Role Badges Adjustment */
-    .role-badge {
-        width: 18px;
-        height: 18px;
-        font-size: 10px;
-        top: -5px;
-        right: -5px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    }
+/* Flying Chip */
+.flying-chip {
+    position: fixed;
+    width: 20px; height: 20px;
+    background: gold;
+    border-radius: 50%;
+    border: 2px dashed #fff;
+    z-index: 9999;
+    pointer-events: none;
+    transition: all 0.5s ease-in-out;
 }

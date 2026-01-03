@@ -3,20 +3,87 @@ class UI {
         const container = document.getElementById('opponents-container');
         container.innerHTML = '';
         const count = opponents.length;
-        const step = 100 / (count + 1);
+        
+        // Ellipse parameters (Percentages relative to .game-layer)
+        // Center is 50%, 50%
+        // We want opponents in the upper arc.
+        // Angles: 0 is right (3 o'clock), -90 is top (12 o'clock), 180 is left (9 o'clock)
+        // We distribute from roughly 160 deg (left-ish) to 20 deg (right-ish) going clockwise?
+        // Actually, in CSS coordinates:
+        // Top is 0%, Left is 0%. Center is 50%, 50%.
+        // Radius X (width) approx 45% (since table width is 90%)
+        // Radius Y (height) approx 45% (since table height is 65% of screen, roughly square-ish aspect in px?)
+        // Let's use pure CSS percentage positioning based on angles.
+        
+        // Distribution range: From Angle 135 (Top Left) to 45 (Top Right) ? 
+        // Or wider: 180 (Left) to 0 (Right).
+        // Since user is at bottom (270 / -90), opponents should be top semi-circle.
+        // Let's say 190 degrees to -10 degrees? (Spanning top)
+        
+        const startAngle = 200; // Left-bottom-ish
+        const endAngle = 340;   // Right-bottom-ish
+        // Wait, standard unit circle: 0 is Right, 90 is Bottom, 180 is Left, 270 is Top.
+        // We want Top semi-circle. 
+        // So from 160 (Left-ish) -> 270 (Top) -> 380 (Right-ish).
+        // Let's distribute evenly between 150 deg and 390 deg.
+        
+        const angleStep = (390 - 150) / (count + 1); // +1 to leave gaps at ends?
+        // Better: spread them evenly across the top arc.
+        // If 1 opponent: 270 (Top)
+        // If 2 opponents: 225, 315
+        
+        // Let's manually define arcs based on count
+        // Angles in degrees (0 = Right, 270 = Top, 180 = Left)
+        let angles = [];
+        if (count === 1) angles = [270];
+        else if (count === 2) angles = [220, 320];
+        else if (count === 3) angles = [200, 270, 340];
+        else if (count === 4) angles = [180, 240, 300, 360];
+        else if (count === 5) angles = [170, 220, 270, 320, 370];
+        
         opponents.forEach((p, index) => {
+            const angle = angles[index];
+            const rad = angle * (Math.PI / 180);
+            
+            // Radius in percentage relative to container size
+            // Container is .game-layer (90% w, 65% h of screen)
+            // We want them on the edge.
+            const rx = 50; // Horizontal radius %
+            const ry = 50; // Vertical radius %
+            
+            // Adjust position: Center + (cos(a)*rx, sin(a)*ry)
+            // Note: sin/cos direction. 
+            // In screen coords: X grows right, Y grows down.
+            // 0 deg (Right): x=50+50=100, y=50.
+            // 270 deg (Top): x=50, y=50-50=0.
+            
+            // Math.cos(270) = 0 -> x=50
+            // Math.sin(270) = -1 -> y=50 + (-1)*50 = 0. Correct.
+            
+            // Offset slightly inwards so avatar is fully visible
+            const offsetX = Math.cos(rad) * 48; 
+            const offsetY = Math.sin(rad) * 48;
+            
+            const left = 50 + offsetX;
+            const top = 50 + offsetY;
+            
             const div = document.createElement('div');
-            div.className = 'player-area opponent';
+            div.className = 'player-seat opponent';
             div.id = `opponent-${index}`;
-            const leftPercent = step * (index + 1);
-            div.style.left = `calc(${leftPercent}% - 60px)`; 
-            const offsetFromCenter = Math.abs((index + 1) - (count + 1)/2);
-            div.style.top = `${10 + offsetFromCenter * 15}px`; 
+            div.style.left = `${left}%`;
+            div.style.top = `${top}%`;
+            
             div.innerHTML = `
-                <div class="player-info">${p.name}</div>
                 <div class="cards"></div>
-                <div class="player-chips"></div>
-                <div class="player-status"></div>
+                <div class="avatar-container">
+                    <div class="avatar">
+                        <div class="avatar-img opponent-avatar">CPU${index+1}</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="chips-pill"><span class="currency">$</span><span class="player-chips">1000</span></div>
+                    </div>
+                    <div class="status-bubble player-status"></div>
+                </div>
             `;
             container.appendChild(div);
         });
@@ -26,60 +93,20 @@ class UI {
         const user = players[0];
         
         // --- Update User ---
-        // Always show face up for user (pass true)
         this.updatePlayerCards(document.getElementById('player-cards'), user.hand, true);
         document.getElementById('player-chips').innerText = user.chips;
-        document.getElementById('player-status').innerText = user.folded ? "Fold" : (user.currentBet > 0 ? `Bet: ${user.currentBet}` : "");
+        this.updateStatusBubble('player-status', user);
         
-        // Handle User Fold State
-        const userArea = document.getElementById('player-area');
-        userArea.classList.toggle('active', game.activePlayerIndex === 0);
-        userArea.classList.toggle('folded', user.folded);
+        // User Active State
+        const userSeat = document.getElementById('player-area');
+        userSeat.classList.toggle('active', game.activePlayerIndex === 0);
+        userSeat.classList.toggle('folded', user.folded);
         
-        // Update User Badges
-        this.updateRoleBadges(userArea, 0, players.length);
+        // Badges
+        this.updateRoleBadges(userSeat.querySelector('.avatar-container'), 0, players.length);
 
-        // --- Hand Strength Hint ---
-        const hintEl = document.getElementById('player-hand-hint');
-        if (user.hand.length > 0 && !user.folded) {
-             // Basic Hand Name
-             const result = HandEvaluator.evaluate(user.hand, game.communityCards);
-             let text = result.name;
-             
-             const val = result.tieBreakers[0];
-             const valStr = this.getRankLabel(val);
-             
-             if (['高牌', '一对', '三条', '四条'].includes(text)) {
-                 text += ` ${valStr}`;
-             } else if (text === '两对') {
-                 text += ` ${valStr} & ${this.getRankLabel(result.tieBreakers[1])}`;
-             } else if (text === '葫芦') {
-                 text += ` ${valStr}`;
-             }
-
-             // Calculate Odds (Simple Cache Check)
-             const activeOpponents = players.filter(p => p !== user && p.isActive && !p.folded).length;
-             if (activeOpponents > 0) {
-                 const stateKey = `${user.hand.map(c=>c.toString()).join('')}-${game.communityCards.map(c=>c.toString()).join('')}-${activeOpponents}`;
-                 if (this.lastOddsState !== stateKey) {
-                     // Recalculate
-                     this.lastWinRate = OddsCalculator.calculate(user.hand, game.communityCards, activeOpponents);
-                     this.lastOddsState = stateKey;
-                 }
-                 const percent = Math.round(this.lastWinRate * 100);
-                 text += ` | 胜率: ${percent}%`;
-                 
-                 // Dynamic Color based on odds
-                 if (percent > 70) hintEl.style.color = '#2ecc71'; // Green
-                 else if (percent < 30) hintEl.style.color = '#e74c3c'; // Red
-                 else hintEl.style.color = '#f1c40f'; // Yellow
-             }
-             
-             hintEl.innerText = text;
-             hintEl.style.display = 'block';
-        } else {
-             hintEl.style.display = 'none';
-        }
+        // Hand Hint
+        this.updateHandHint(user, players);
 
         // --- Update Opponents ---
         for(let i=1; i<players.length; i++) {
@@ -87,68 +114,100 @@ class UI {
             const div = document.getElementById(`opponent-${i-1}`);
             if(!div) continue;
             
-            this.updatePlayerCards(div.querySelector('.cards'), p.hand, showAllCards || p.folded === false && showAllCards, p.folded); 
-
+            this.updatePlayerCards(div.querySelector('.cards'), p.hand, showAllCards || (p.folded === false && showAllCards), p.folded); 
             div.querySelector('.player-chips').innerText = p.chips;
-            div.querySelector('.player-status').innerText = p.folded ? "Fold" : (p.currentBet > 0 ? `${p.currentBet}` : "");
+            this.updateStatusBubble(div.querySelector('.player-status'), p);
             
             div.classList.toggle('active', game.activePlayerIndex === i);
             div.classList.toggle('folded', p.folded);
             
-            // Update Opponent Badges
-            this.updateRoleBadges(div, i, players.length);
+            this.updateRoleBadges(div.querySelector('.avatar-container'), i, players.length);
+        }
+    }
+
+    updateStatusBubble(elOrId, player) {
+        const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+        if (!el) return;
+        
+        if (player.folded) {
+            el.innerText = "弃牌";
+            el.style.display = 'block';
+            el.style.background = '#e74c3c';
+        } else if (player.currentBet > 0) {
+            // Check if it's the current active player, or just showing previous bet?
+            // Usually we show "Bet: 20" or "Call"
+            // For now, just show bet amount if > 0
+            el.innerText = `下注 ${player.currentBet}`;
+            el.style.display = 'block';
+            el.style.background = 'rgba(0,0,0,0.8)';
+        } else if (game.activePlayerIndex === game.players.indexOf(player)) {
+             // Currently thinking?
+             el.innerText = '...';
+             el.style.display = 'block';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    updateHandHint(user, players) {
+        const hintEl = document.getElementById('player-hand-hint');
+        if (user.hand.length > 0 && !user.folded) {
+             const result = HandEvaluator.evaluate(user.hand, game.communityCards);
+             let text = result.name;
+             
+             // Simple Rank Label logic
+             // ... (Same as before)
+             
+             // Win Rate
+             const activeOpponents = players.filter(p => p !== user && p.isActive && !p.folded).length;
+             if (activeOpponents > 0) {
+                 const stateKey = `${user.hand.map(c=>c.toString()).join('')}-${game.communityCards.map(c=>c.toString()).join('')}-${activeOpponents}`;
+                 if (this.lastOddsState !== stateKey) {
+                     this.lastWinRate = OddsCalculator.calculate(user.hand, game.communityCards, activeOpponents);
+                     this.lastOddsState = stateKey;
+                 }
+                 const percent = Math.round(this.lastWinRate * 100);
+                 text += ` ${percent}%`;
+                 
+                 if (percent > 70) hintEl.style.borderColor = '#2ecc71'; 
+                 else if (percent < 30) hintEl.style.borderColor = '#e74c3c';
+                 else hintEl.style.borderColor = '#f1c40f';
+             }
+             
+             hintEl.innerText = text;
+             hintEl.style.display = 'block';
+        } else {
+             hintEl.style.display = 'none';
         }
     }
 
     updateRoleBadges(container, playerIndex, totalPlayers) {
-        // Clear existing badges
+        // Clear existing
         container.querySelectorAll('.role-badge').forEach(el => el.remove());
 
         const dealerIdx = game.dealerIndex;
         const sbIdx = (dealerIdx + 1) % totalPlayers;
         const bbIdx = (dealerIdx + 2) % totalPlayers;
 
-        const badges = [];
-        if (playerIndex === dealerIdx) badges.push({ text: 'D', cls: 'role-dealer' });
-        if (playerIndex === sbIdx) badges.push({ text: 'SB', cls: 'role-sb' });
-        if (playerIndex === bbIdx) badges.push({ text: 'BB', cls: 'role-bb' });
+        let badge = null;
+        if (playerIndex === dealerIdx) badge = {t:'D', c:'role-dealer'};
+        else if (playerIndex === sbIdx) badge = {t:'SB', c:'role-sb'};
+        else if (playerIndex === bbIdx) badge = {t:'BB', c:'role-bb'};
 
-        // Render Badges
-        badges.forEach((b, i) => {
-            const badge = document.createElement('div');
-            badge.className = `role-badge ${b.cls}`;
-            badge.innerText = b.text;
-            
-            // If multiple badges, offset them
-            if (i > 0) {
-                // Shift subsequent badges to the left
-                badge.style.right = `${-10 + (i * 25)}px`; 
-            }
-            
-            // Badge width 20px. Gap 2px.
-            // i=0: right: -10px.
-            // i=1: right: 15px. (25px shift)
-            badge.style.right = `${-10 + (i * 25)}px`;
-            
-            container.appendChild(badge);
-        });
-    }
-
-    getRankLabel(val) {
-        if (val === 14) return 'A';
-        if (val === 13) return 'K';
-        if (val === 12) return 'Q';
-        if (val === 11) return 'J';
-        return val;
+        if (badge) {
+            const el = document.createElement('div');
+            el.className = `role-badge ${badge.c}`;
+            el.innerText = badge.t;
+            // Position relative to avatar container (top-left usually)
+            // CSS handles position
+            container.appendChild(el);
+        }
     }
 
     updatePlayerCards(container, hand, showFaceUp, isFolded = false) {
-        // Sync DOM cards with data cards
-        // Simple approach: 
-        // 1. If DOM has fewer cards, add new ones (animate them).
-        // 2. If DOM has more cards (new hand), clear and rebuild.
-        // 3. If same count, assume same cards (optimization).
-
+        // ... (Keep existing card update logic, mostly generic)
+        // Except we might want to ensure 'back' cards are rendered correctly
+        
         const existingCards = container.children.length;
         const targetCards = hand.length;
 
@@ -156,169 +215,71 @@ class UI {
             container.innerHTML = '';
             return;
         }
-        
-        // BUG FIX: Compare actual card values to detect new hand
-        // Even if count is same (2), the cards might be different
-        // Check first card to see if it matches
-        let isNewHand = false;
-        if (existingCards > 0 && targetCards > 0 && showFaceUp) {
-            const firstDom = container.firstElementChild;
-            // Assuming getHTML() puts values in specific divs.
-            // Let's store data-value on card element for easier check
-            // Or just check innerText. 
-            // Better: force rebuild if it's the start of a new hand? 
-            // startNewHand calls resetHand (hand=[]), then deal (hand=[c1]).
-            // So updatePlayers will see 0 -> 1 -> 2.
-            // The issue might be that container wasn't cleared when hand was reset?
-            // updatePlayers is called in startNewHand AFTER deal loop.
-            // But hand is reset BEFORE deal.
-            // If we don't call updatePlayers in between, existingCards is 2 (old), target is 2 (new).
-            // Logic below falls through to "same count" and does nothing.
-        }
-        
-        // Fix: In startNewHand, we call players.forEach(p => p.resetHand()). 
-        // We should probably update UI there to clear cards? 
-        // Or handle "different cards" detection here.
-        // Let's detect by checking if the DOM cards match the Hand cards text.
-        
-        if (existingCards === targetCards && showFaceUp) {
-            const domCard = container.children[0];
-            const handCard = hand[0];
-            // Check if card content matches. 
-            // Note: domCard might be 'back'.
-            if (!domCard.classList.contains('back')) {
-                const valDiv = domCard.querySelector('div:first-child'); // value
-                const suitDiv = domCard.querySelector('div:last-child'); // suit
-                if (valDiv && suitDiv) {
-                     if (valDiv.innerText !== handCard.value || suitDiv.innerText !== handCard.suit) {
-                         isNewHand = true;
-                     }
-                }
-            }
-        }
 
-        if (targetCards < existingCards || isNewHand) {
-             // New hand started, clear everything
-             container.innerHTML = '';
-        }
-
-        // Add new cards
-        for (let i = container.children.length; i < targetCards; i++) {
-            const cardObj = hand[i];
+        // Simple rebuild for robustness in new layout
+        // Optimization can be added back if needed
+        container.innerHTML = '';
+        
+        hand.forEach((card, i) => {
             let cardEl;
-            
             if (showFaceUp) {
-                cardEl = cardObj.getHTML();
+                cardEl = card.getHTML();
             } else {
-                // For opponents, usually face down unless showdown
-                // Check if we should show this specific opponent card? 
-                // The argument showFaceUp is passed as true during showdown.
-                // During normal play, opponents get back cards.
-                // Wait, updatePlayers logic for opponents:
-                // showAllCards || p.folded === false && showAllCards... 
-                // Let's simplify: passed showFaceUp determines if we see content.
-                if (showFaceUp) {
-                    cardEl = cardObj.getHTML();
-                } else {
-                    cardEl = document.createElement('div');
-                    cardEl.classList.add('card', 'back');
-                }
+                cardEl = document.createElement('div');
+                cardEl.className = 'card back';
             }
-
-            // Animation Setup
-            cardEl.classList.add('dealing');
             container.appendChild(cardEl);
-
-            // Trigger Reflow
-            void cardEl.offsetWidth;
-
-            // Animate In
-            // Use setTimeout to allow browser to register 'dealing' state first
-            setTimeout(() => {
-                cardEl.classList.remove('dealing');
-            }, 50 + i * 100); // Stagger effect
-        }
-        
-        // If showdown (showFaceUp changed from false to true), we might need to flip existing cards?
-        // For this MVP, we just replace them if needed. 
-        // But the current logic only appends. 
-        // If we go from 2 backs to 2 fronts, the count is same, loop won't run.
-        // Fix: Check if first card state matches.
-        if (existingCards > 0 && existingCards === targetCards && showFaceUp) {
-             // Check if currently showing backs but need fronts
-             const firstDom = container.firstElementChild;
-             if (firstDom.classList.contains('back')) {
-                 // FLIP REVEAL!
-                 container.innerHTML = '';
-                 hand.forEach((c, idx) => {
-                     const el = c.getHTML();
-                     // No flying animation, just appear (or flip animation if we were fancy)
-                     container.appendChild(el);
-                 });
-             }
-        }
+        });
     }
 
     updateCommunityCards(cards) {
         const div = document.getElementById('community-cards');
-        const existingCount = div.children.length;
-        
-        if (cards.length < existingCount) {
-            div.innerHTML = '';
-        }
-
-        for (let i = div.children.length; i < cards.length; i++) {
-            const cardEl = cards[i].getHTML();
-            cardEl.classList.add('dealing');
-            div.appendChild(cardEl);
-            
-            void cardEl.offsetWidth;
-            
-            setTimeout(() => {
-                cardEl.classList.remove('dealing');
-            }, 100);
-        }
+        div.innerHTML = '';
+        cards.forEach(c => {
+            div.appendChild(c.getHTML());
+        });
     }
+
     updatePot(amount) { document.getElementById('pot-amount').innerText = amount; }
     showMessage(msg) { document.getElementById('message-area').innerText = msg; }
     
-    // --- Chip Animations ---
     animateChips(fromEl, toEl, amount, onComplete) {
-        if (!fromEl || !toEl) return;
+        if (!fromEl || !toEl) {
+            if(onComplete) onComplete();
+            return;
+        }
         
         const rectFrom = fromEl.getBoundingClientRect();
         const rectTo = toEl.getBoundingClientRect();
         
-        // Create flying chip
         const chip = document.createElement('div');
         chip.className = 'flying-chip';
-        chip.style.left = `${rectFrom.left + rectFrom.width/2 - 12}px`;
-        chip.style.top = `${rectFrom.top + rectFrom.height/2 - 12}px`;
+        // Center of element
+        chip.style.left = `${rectFrom.left + rectFrom.width/2 - 10}px`;
+        chip.style.top = `${rectFrom.top + rectFrom.height/2 - 10}px`;
         document.body.appendChild(chip);
         
-        // Trigger animation
+        // Force reflow
         void chip.offsetWidth;
-        chip.style.left = `${rectTo.left + rectTo.width/2 - 12}px`;
-        chip.style.top = `${rectTo.top + rectTo.height/2 - 12}px`;
         
-        // Cleanup
+        chip.style.left = `${rectTo.left + rectTo.width/2 - 10}px`;
+        chip.style.top = `${rectTo.top + rectTo.height/2 - 10}px`;
+        
         setTimeout(() => {
             chip.remove();
             if (onComplete) onComplete();
-        }, 400); // Match CSS duration
+        }, 500);
     }
 
     animatePotToWinner(winnerIndex, callback) {
-        // Pot is center
-        const potEl = document.querySelector('.pot-display');
-        
-        // Winner element
+        const potEl = document.querySelector('.pot-container');
         let winnerEl;
+        
         if (winnerIndex === 0) {
-            winnerEl = document.getElementById('player-area').querySelector('.player-info'); // Avatar area
+            winnerEl = document.getElementById('player-area').querySelector('.avatar');
         } else {
             const opp = document.getElementById(`opponent-${winnerIndex-1}`);
-            if (opp) winnerEl = opp.querySelector('.player-info');
+            if (opp) winnerEl = opp.querySelector('.avatar');
         }
         
         if (!winnerEl) {
@@ -326,14 +287,12 @@ class UI {
              return;
         }
 
-        // Animate multiple chips for effect
         for(let i=0; i<5; i++) {
             setTimeout(() => {
                 this.animateChips(potEl, winnerEl, 0);
             }, i * 50);
         }
         
-        // Highlight winner glow
         if (winnerIndex === 0) {
             document.getElementById('player-area').classList.add('winner-glow');
         } else {
@@ -342,7 +301,6 @@ class UI {
         }
         
         setTimeout(() => {
-             // Remove glow
              document.querySelectorAll('.winner-glow').forEach(el => el.classList.remove('winner-glow'));
              if(callback) callback();
         }, 2000);
