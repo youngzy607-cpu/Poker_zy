@@ -4,25 +4,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>德州扑克 HTML 版</title>
-    <link rel="stylesheet" href="style.css?v=1.7">
+    <link rel="stylesheet" href="style.css?v=2.2.0">
 </head>
 <body>
-    <!-- Lobby / Start Screen -->
-    <div id="lobby-overlay" class="lobby-overlay">
-        <div class="lobby-box">
+    <!-- Main Menu -->
+    <div id="main-menu" class="main-menu">
+        <div class="menu-box">
             <h1>德州扑克</h1>
+            <div class="menu-chips">当前持有: <span id="menu-chip-count" class="gold">...</span></div>
+            <div class="menu-buttons">
+                <button id="btn-menu-single" class="btn-menu">单机模式</button>
+                <button id="btn-menu-multi" class="btn-menu">联机对战</button>
+                <button id="btn-menu-stats" class="btn-menu">个人战绩</button>
+                <button id="btn-menu-achievements" class="btn-menu">🏆 成就系统</button>
+                <button id="btn-menu-rankings" class="btn-menu">🃏 牌型说明</button>
+                <button id="btn-menu-exit" class="btn-menu">退出游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Overlay -->
+    <div id="achievements-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box achievements-box">
+            <h1>成就系统</h1>
+            <div class="achievements-list" id="achievements-list">
+                <!-- JS injected items -->
+            </div>
+            <div class="lobby-actions">
+                <button id="btn-achievements-close" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overlay -->
+    <div id="stats-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box stats-box">
+            <h1>个人战绩</h1>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">当前筹码</div>
+                    <div class="stat-value gold" id="stat-chips">1000</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">总局数</div>
+                    <div class="stat-value" id="stat-hands">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">胜局数</div>
+                    <div class="stat-value" id="stat-wins">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">总盈利</div>
+                    <div class="stat-value" id="stat-profit">0</div>
+                </div>
+                <div class="stat-item wide">
+                    <div class="stat-label">最佳牌型</div>
+                    <div class="stat-value highlight" id="stat-best-hand">无</div>
+                </div>
+                <div class="stat-item wide">
+                    <div class="stat-label">单局最大底池</div>
+                    <div class="stat-value gold" id="stat-biggest-pot">0</div>
+                </div>
+            </div>
+            
+            <div class="history-list">
+                <h3>最近战绩</h3>
+                <div id="history-container">
+                    <!-- JS injected history items -->
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-stats-close" class="btn-secondary">关闭</button>
+                <button id="btn-stats-reset" class="btn-secondary danger">重置数据</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rankings Overlay -->
+    <div id="rankings-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box rankings-box">
+            <h1>德州扑克牌型大小顺序</h1>
+            <div class="rankings-list" id="rankings-list">
+                <!-- JS injected items -->
+            </div>
+            <div class="lobby-actions">
+                <button id="btn-rankings-close" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby / Start Screen (Single Player Setup) -->
+    <div id="lobby-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box">
+            <h1>单机模式</h1>
+            <div class="lobby-info">总资产: <span id="lobby-total-chips" class="gold">0</span></div>
+            
             <p>选择电脑对手数量 (1-5)</p>
             <div class="opponent-selector">
                 <input type="range" id="opponent-count" min="1" max="5" value="5" oninput="document.getElementById('count-display').innerText = this.value">
                 <span id="count-display">5</span>
             </div>
-            <button id="btn-lobby-start">开始游戏</button>
+            
+            <p>带入筹码量</p>
+            <div class="opponent-selector">
+                <input type="range" id="buyin-amount" min="100" max="1000" step="100" value="1000">
+                <span id="buyin-display">1000</span>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-lobby-start">开始游戏</button>
+                <button id="btn-lobby-back" class="btn-secondary">返回</button>
+            </div>
         </div>
     </div>
 
-    <div class="game-container">
+    <div class="game-container" style="display: none;">
         <!-- 版本号 (左上角) -->
-        <div class="version-tag">v1.7.1</div>
+        <div class="version-tag">v2.3.0</div>
+
+        <!-- 成就通知容器 -->
+        <div id="achievement-notification-container" class="achievement-notification-container"></div>
+
+        <!-- 返回主菜单 (右上角，音效左侧) -->
+        <button id="btn-back-menu" class="icon-btn" title="返回主菜单">🏠</button>
+        <button id="btn-game-rankings" class="icon-btn" title="牌型说明">ℹ️</button>
 
         <!-- 音效开关 (右上角) -->
         <button id="mute-btn" class="mute-btn" title="开关音效">🔊</button>
@@ -106,12 +212,14 @@
         </div>
     </div>
 
-    <script src="js/card.js?v=1.7"></script>
-    <script src="js/audio.js?v=1.7"></script>
-    <script src="js/evaluator.js?v=1.7"></script>
-    <script src="js/player.js?v=1.7"></script>
-    <script src="js/ui.js?v=1.7"></script>
-    <script src="js/game.js?v=1.7"></script>
-    <script src="js/main.js?v=1.7"></script>
+    <script src="js/card.js?v=2.2.0"></script>
+    <script src="js/audio.js?v=2.2.0"></script>
+    <script src="js/evaluator.js?v=2.2.0"></script>
+    <script src="js/player.js?v=2.2.0"></script>
+    <script src="js/data.js?v=2.2.0"></script>
+    <script src="js/achievements.js?v=2.2.0"></script>
+    <script src="js/ui.js?v=2.2.0"></script>
+    <script src="js/game.js?v=2.2.0"></script>
+    <script src="js/main.js?v=2.2.0"></script>
 </body>
 </html>

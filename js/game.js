@@ -10,14 +10,132 @@ class Game {
         this.dealerIndex = 0;
         this.playersToAct = []; // Queue of players who must act
         this.ui = new UI();
+        this.timers = []; // Track active timers
+        
+        // Bankroll Management
+        this.bankroll = 0; // Chips remaining outside the table
         
         this.bindEvents();
+    }
+    
+    // Helper to manage timers
+    setTimeout(fn, delay) {
+        const id = window.setTimeout(fn, delay);
+        this.timers.push(id);
+        return id;
+    }
+    
+    clearAllTimers() {
+        this.timers.forEach(id => clearTimeout(id));
+        this.timers = [];
     }
 
     bindEvents() {
         document.getElementById('btn-lobby-start').addEventListener('click', () => {
             const count = parseInt(document.getElementById('opponent-count').value);
-            this.initGame(count);
+            const buyIn = parseInt(document.getElementById('buyin-amount').value);
+            this.initGame(count, buyIn);
+        });
+
+        // Main Menu & Navigation Handlers
+        document.getElementById('btn-menu-single').addEventListener('click', () => {
+            // Update Lobby UI with current persistent chips
+            const profile = DataManager.load();
+            let totalChips = profile.chips;
+            
+            // Bankruptcy Check
+            if (totalChips <= 0) {
+                 totalChips = 1000;
+                 DataManager.updateChips(1000);
+                 alert("破产补助：已为您补充 1000 筹码");
+            }
+            
+            document.getElementById('lobby-total-chips').innerText = totalChips;
+            
+            // Setup Buy-in Slider
+            const slider = document.getElementById('buyin-amount');
+            const display = document.getElementById('buyin-display');
+            
+            // Logic: Min 100, Max Total. Default 50% or 1000.
+            const minBuyIn = 100;
+            const maxBuyIn = totalChips;
+            
+            slider.min = minBuyIn;
+            slider.max = maxBuyIn;
+            slider.value = Math.min(1000, maxBuyIn); // Default to 1000 or max
+            display.innerText = slider.value;
+            
+            slider.oninput = function() { display.innerText = this.value; }
+            
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('lobby-overlay').style.display = 'flex';
+        });
+
+        document.getElementById('btn-menu-multi').addEventListener('click', () => {
+            alert('联机对战功能开发中，敬请期待！');
+        });
+
+        // Stats Button
+        document.getElementById('btn-menu-stats').addEventListener('click', () => {
+             const data = DataManager.load();
+             document.getElementById('stat-chips').innerText = data.chips;
+             document.getElementById('stat-hands').innerText = data.stats.totalHands;
+             document.getElementById('stat-wins').innerText = data.stats.wins;
+             document.getElementById('stat-profit').innerText = data.stats.totalProfit > 0 ? `+${data.stats.totalProfit}` : data.stats.totalProfit;
+             document.getElementById('stat-best-hand').innerText = data.stats.bestHand.name !== '无' ? `${data.stats.bestHand.name}` : '暂无';
+             document.getElementById('stat-biggest-pot').innerText = data.stats.biggestPot;
+             
+             // History List
+             const historyContainer = document.getElementById('history-container');
+             historyContainer.innerHTML = '';
+             data.history.forEach(item => {
+                 const div = document.createElement('div');
+                 div.className = 'history-item';
+                 div.innerHTML = `
+                    <div class="history-date">${item.date}</div>
+                    <div class="history-hand">${item.handName}</div>
+                    <div class="history-profit ${item.profit >= 0 ? 'win' : 'loss'}">${item.profit >= 0 ? '+' : ''}${item.profit}</div>
+                 `;
+                 historyContainer.appendChild(div);
+             });
+
+             document.getElementById('main-menu').style.display = 'none';
+             document.getElementById('stats-overlay').style.display = 'flex';
+        });
+
+        document.getElementById('btn-stats-close').addEventListener('click', () => {
+            document.getElementById('stats-overlay').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        });
+
+        document.getElementById('btn-stats-reset').addEventListener('click', () => {
+            if(confirm('确定要重置所有战绩数据吗？这将清空您的筹码和历史记录。')) {
+                DataManager.reset();
+                alert('数据已重置');
+                document.getElementById('btn-stats-close').click();
+            }
+        });
+
+        document.getElementById('btn-menu-exit').addEventListener('click', () => {
+            if(confirm('确定要退出游戏吗？')) {
+                window.close(); // Only works if opened via script, but good for intent
+                // Fallback for standalone/web
+                document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#111;color:#fff;"><h1>已退出游戏</h1></div>';
+            }
+        });
+
+        document.getElementById('btn-lobby-back').addEventListener('click', () => {
+            document.getElementById('lobby-overlay').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        });
+
+        document.getElementById('btn-back-menu').addEventListener('click', () => {
+            if(confirm('确定要返回主菜单吗？当前牌局将直接结束，您的筹码（包含场外余额）将自动保存。')) {
+                this.stopGame(); 
+                document.querySelector('.game-container').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'flex';
+                this.updateMenuChips(); // Refresh chips display in menu
+            }
         });
 
         document.getElementById('btn-fold').addEventListener('click', () => this.handleAction('fold'));
@@ -71,29 +189,73 @@ class Game {
         document.getElementById('btn-restart').addEventListener('click', () => this.restartGame());
     }
 
+    stopGame() {
+        // Save Chips Logic
+        if (this.players && this.players.length > 0) {
+            const user = this.players[0];
+            const currentTotal = this.bankroll + user.chips;
+            DataManager.updateChips(currentTotal);
+        }
+    
+        // Reset game state to initial values
+        this.clearAllTimers(); // Stop AI and loops
+        this.players = [];
+        this.communityCards = [];
+        this.pot = 0;
+        this.currentBet = 0;
+        this.phase = 'pre-flop';
+        this.playersToAct = [];
+        this.activePlayerIndex = -1; // Invalid index to prevent AI running
+        
+        this.ui.updateCommunityCards([]);
+        this.ui.updatePot(0);
+        document.getElementById('opponents-container').innerHTML = ''; // Clear opponents
+    }
+
     getMaxRaiseAmount() {
         const player = this.players[0];
         const callAmt = this.currentBet - player.currentBet;
         return Math.max(0, player.chips - callAmt);
     }
 
-    initGame(opponentCount) {
+    updateMenuChips() {
+        const data = DataManager.load();
+        const el = document.getElementById('menu-chip-count');
+        if (el) el.innerText = data.chips;
+    }
+
+    initGame(opponentCount, buyInAmount) {
         document.getElementById('lobby-overlay').style.display = 'none';
+        document.querySelector('.game-container').style.display = 'flex'; // Show Game
         
         // Initialize Audio Context explicitly on Start button click
         if (typeof soundManager !== 'undefined') {
             soundManager.init();
         }
 
+        // Setup Bankroll Logic
+        // buyInAmount is what we take to the table.
+        // this.bankroll is what remains in "safe".
+        const profile = DataManager.load();
+        const total = profile.chips;
+        this.bankroll = total - buyInAmount;
+        // Safety check
+        if (this.bankroll < 0) this.bankroll = 0;
+        
+        // Immediately save the "deduction" (optional, but safer to treat chips as table chips + bankroll)
+        // For simplicity, we only update persistence on endHand or exit.
+        // BUT if user closes tab during game, they lose table chips if we don't save "in-game" state.
+        // For now, assume graceful exit.
+
         this.players = [];
-        this.players.push(new Player('玩家 (你)', 1000, false));
+        this.players.push(new Player('玩家 (你)', buyInAmount, false));
         for (let i = 1; i <= opponentCount; i++) {
             const personality = {
                 aggression: Math.random(),      // 0-1
                 tightness: Math.random(),       // 0-1
                 bluffFrequency: Math.random()   // 0-1
             };
-            this.players.push(new Player(`电脑 ${i}`, 1000, true, personality));
+            this.players.push(new Player(`电脑 ${i}`, buyInAmount, true, personality)); // Opponents match buy-in
         }
 
         this.ui.setupOpponents(this.players.slice(1)); 
@@ -138,6 +300,9 @@ class Game {
         this.ui.updatePot(this.pot);
         this.ui.updatePlayers(this.players);
         this.ui.showMessage("新的一局开始！");
+        
+        // Track user start chips for profit calculation
+        this.userStartChips = this.players[0].chips;
         
         // Populate playersToAct queue
         // Pre-flop starts at UTG (Dealer + 3)
@@ -270,7 +435,7 @@ class Game {
         }
 
         // Delay for next turn
-        setTimeout(() => this.nextTurn(), player.isComputer ? 600 : 400);
+        this.setTimeout(() => this.nextTurn(), player.isComputer ? 600 : 400);
     }
 
     nextTurn() {
@@ -303,11 +468,14 @@ class Game {
     processTurn() {
         // Removed: this.ui.highlightActivePlayer(this.activePlayerIndex); (Deprecated)
         const player = this.players[this.activePlayerIndex];
+        
+        // BUG FIX: Existence check
+        if (!player) return; 
 
         if (player.isComputer) {
             this.disableControls();
             this.ui.showMessage(`${player.name} 思考中...`);
-            setTimeout(() => this.computerAI(), 800);
+            this.setTimeout(() => this.computerAI(), 800);
         } else {
             this.ui.showMessage("轮到你了");
             soundManager.playAlert();
@@ -316,7 +484,14 @@ class Game {
     }
 
     computerAI() {
+        // BUG FIX: Existence check
+        if (!this.players || this.activePlayerIndex >= this.players.length || this.activePlayerIndex < 0) return;
+        
         const cpu = this.players[this.activePlayerIndex];
+        
+        // Extra safety check
+        if (!cpu) return;
+        
         const diff = this.currentBet - cpu.currentBet;
         const activePlayersCount = this.players.filter(p => p.isActive && !p.folded).length;
 
@@ -449,18 +624,36 @@ class Game {
         // Start from Dealer + 1
         this.populateQueue((this.dealerIndex + 1) % this.players.length);
         
-        setTimeout(() => this.nextTurn(), 1000);
+        this.setTimeout(() => this.nextTurn(), 1000);
     }
 
     endHand(winner) {
         if (winner) {
             winner.chips += this.pot;
             this.ui.showMessage(`${winner.name} 赢了 ${this.pot} 筹码!`);
-            this.pot = 0;
-            this.ui.updatePlayers(this.players);
-            this.ui.updatePot(0);
+            
+            // If user won, update stats immediately? Or wait for end of session?
+            // Better to update persistence at end of every hand to prevent data loss.
         }
-        setTimeout(() => this.startNewHand(), 3000);
+        
+        // Save user state
+        const user = this.players[0];
+        // Update persistent chips: Bankroll + Current Table Chips
+        DataManager.updateChips(this.bankroll + user.chips);
+        
+        // We need to record hand history. But "endHand" is for early fold win.
+        // If early fold win, user hand is not fully played out, but profit is real.
+        // Let's record simple result.
+        // We need to track how many chips user had at start of hand to calculate profit.
+        // Or we can just calculate profit = (current - previous_saved).
+        // To simplify, we might want to refactor where we record history.
+        // For now, let's just save chips.
+        
+        this.pot = 0;
+        this.ui.updatePlayers(this.players);
+        this.ui.updatePot(0);
+        
+        this.setTimeout(() => this.startNewHand(), 3000);
     }
     
     restartGame() {
@@ -501,11 +694,11 @@ class Game {
         let msg = "";
         
         // Wait for potential river card animation
-        setTimeout(() => {
+        this.setTimeout(() => {
             winners.forEach((w, i) => {
                 const pIdx = this.players.indexOf(w.player);
                 // Stagger animations if multiple winners
-                setTimeout(() => {
+                this.setTimeout(() => {
                     this.ui.animatePotToWinner(pIdx, () => {
                          // After animation, update chips text
                          w.player.chips += winAmount;
@@ -520,7 +713,35 @@ class Game {
             this.ui.showMessage(msg);
             soundManager.playWin();
             
-            setTimeout(() => {
+            // --- Save User Data & Record History ---
+            const user = this.players[0];
+            const userScore = scores.find(s => s.player === user);
+            const userWon = winners.some(w => w.player === user);
+            
+            // Calculate Profit: Current Chips - Start Chips (Need to track start chips)
+            // Simplified: We assume we just compare to stored value before this update?
+            // Better: DataManager.updateChips overwrites.
+            // Let's rely on DataManager to handle "session" profit if we want, but for "hand history":
+            // We need to know if user won or lost this specific hand.
+            // Start Chips: this.userStartChips (need to add this property to Game class)
+            const profit = user.chips - this.userStartChips + (userWon ? winAmount : 0); 
+            // Note: user.chips hasn't been updated with winAmount in the object reference YET inside this callback loop context fully? 
+            // Wait, w.player.chips += winAmount happens inside the animation callback.
+            // So we should do saving AFTER animation.
+            
+            this.setTimeout(() => {
+                // Now chips are updated
+                const actualProfit = user.chips - this.userStartChips;
+                // Update persistent chips: Bankroll + Current Table Chips
+                DataManager.updateChips(this.bankroll + user.chips);
+                
+                DataManager.recordHand({
+                    profit: actualProfit,
+                    hand: userScore ? userScore.score : null,
+                    pot: this.pot,
+                    cards: user.hand.map(c => c.toString()) // Simple string representation
+                });
+                
                 this.pot = 0;
                 this.ui.updatePot(0);
                 this.startNewHand();
@@ -576,5 +797,25 @@ class Game {
         document.getElementById('btn-quick-allin').disabled = true;
         document.getElementById('raise-inputs').style.display = 'none';
         document.getElementById('main-actions').style.display = 'flex';
+    }
+
+    checkAchievements() {
+        const profile = DataManager.load();
+        // Check using current stats and TOTAL chips (bankroll + table chips)
+        // Note: DataManager.updateChips was just called, so profile.chips is accurate total.
+        const unlocked = AchievementManager.check(profile.stats, profile.chips);
+        
+        if (unlocked.length > 0) {
+            unlocked.forEach(ach => {
+                this.ui.showAchievementToast(ach);
+            });
+            
+            // Sync local bankroll because AchievementManager added rewards to persistent storage
+            const newProfile = DataManager.load();
+            const user = this.players[0];
+            // New Total = Old Total + Rewards
+            // We want to keep user.chips (table stack) same, but increase bankroll.
+            this.bankroll = newProfile.chips - user.chips;
+        }
     }
 }

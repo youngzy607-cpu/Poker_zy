@@ -312,4 +312,149 @@ class UI {
              if(callback) callback();
         }, 2000);
     }
+
+    showAchievementToast(achievement) {
+        const container = document.getElementById('achievement-notification-container');
+        const toast = document.createElement('div');
+        toast.className = 'ach-toast';
+        toast.innerHTML = `
+            <div class="ach-toast-icon">🏆</div>
+            <div class="ach-toast-content">
+                <div class="ach-toast-title">解锁成就：${achievement.title}</div>
+                <div class="ach-toast-reward">奖励 +${achievement.reward} 筹码</div>
+            </div>
+        `;
+        container.appendChild(toast);
+        
+        // Remove after animation (4s total)
+        setTimeout(() => {
+            toast.remove();
+        }, 4000);
+    }
+
+    renderRankings() {
+        const list = document.getElementById('rankings-list');
+        if (!list) return;
+        list.innerHTML = '';
+        
+        const rankings = [
+            {
+                rank: 1,
+                name: '皇家同花顺',
+                en: 'Royal Flush',
+                desc: '相同花色的10、J、Q、K、A',
+                cards: [
+                    new Card('♥', 'A'), new Card('♥', 'K'), new Card('♥', 'Q'), new Card('♥', 'J'), new Card('♥', '10')
+                ]
+            },
+            {
+                rank: 2,
+                name: '同花顺',
+                en: 'Straight Flush',
+                desc: '五张花色相同且点数相连的牌',
+                cards: [
+                    new Card('♠', '10'), new Card('♠', '9'), new Card('♠', '8'), new Card('♠', '7'), new Card('♠', '6')
+                ]
+            },
+            {
+                rank: 3,
+                name: '四条',
+                en: 'Four of a Kind',
+                desc: '四张相同点数的牌+一张单牌',
+                cards: [
+                    new Card('♥', 'K'), new Card('♠', 'K'), new Card('♦', 'K'), new Card('♣', 'K'), new Card('♠', '6')
+                ]
+            },
+            {
+                rank: 4,
+                name: '葫芦',
+                en: 'Full House',
+                desc: '三张相同点数的牌+一对相同点数的牌',
+                cards: [
+                    new Card('♥', 'J'), new Card('♠', 'J'), new Card('♦', 'J'), new Card('♠', '7'), new Card('♣', '7')
+                ]
+            },
+            {
+                rank: 5,
+                name: '同花',
+                en: 'Flush',
+                desc: '五张相同花色的牌',
+                cards: [
+                    new Card('♥', 'A'), new Card('♥', 'Q'), new Card('♥', '10'), new Card('♥', '7'), new Card('♥', '3')
+                ]
+            },
+            {
+                rank: 6,
+                name: '顺子',
+                en: 'Straight',
+                desc: '五张点数相连的牌',
+                cards: [
+                    new Card('♥', '7'), new Card('♦', '6'), new Card('♥', '5'), new Card('♣', '4'), new Card('♠', '3')
+                ]
+            },
+            {
+                rank: 7,
+                name: '三条',
+                en: 'Three of a Kind',
+                desc: '三张相同点数的牌+两张单牌',
+                cards: [
+                    new Card('♠', '9'), new Card('♦', '9'), new Card('♣', '9'), new Card('♠', '5'), new Card('♠', '2')
+                ]
+            },
+            {
+                rank: 8,
+                name: '两对',
+                en: 'Two Pairs',
+                desc: '两对相同点数的牌+一张单牌',
+                cards: [
+                    new Card('♠', 'K'), new Card('♦', 'K'), new Card('♦', '9'), new Card('♣', '9'), new Card('♣', '5')
+                ]
+            },
+            {
+                rank: 9,
+                name: '一对',
+                en: 'One Pair',
+                desc: '一对相同点数的牌+三张单牌',
+                cards: [
+                    new Card('♠', 'J'), new Card('♣', 'J'), new Card('♣', '9'), new Card('♦', '4'), new Card('♥', '2')
+                ]
+            },
+            {
+                rank: 10,
+                name: '高牌',
+                en: 'High Card',
+                desc: '不能组成以上牌型的五张牌',
+                cards: [
+                    new Card('♦', 'A'), new Card('♠', '10'), new Card('♥', '7'), new Card('♥', '6'), new Card('♠', '4')
+                ]
+            }
+        ];
+
+        rankings.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'ranking-item';
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'ranking-info';
+            infoDiv.innerHTML = `
+                <div class="ranking-badge">${item.rank}</div>
+                <div class="ranking-text">
+                    <div class="ranking-name">${item.name} <span class="ranking-en">${item.en}</span></div>
+                    <div class="ranking-desc">${item.desc}</div>
+                </div>
+            `;
+            
+            const cardsDiv = document.createElement('div');
+            cardsDiv.className = 'ranking-cards';
+            item.cards.forEach(card => {
+                const cardEl = card.getHTML();
+                cardEl.classList.add('mini-card'); 
+                cardsDiv.appendChild(cardEl);
+            });
+            
+            row.appendChild(infoDiv);
+            row.appendChild(cardsDiv);
+            list.appendChild(row);
+        });
+    }
 }
