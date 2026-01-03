@@ -88,7 +88,12 @@ class Game {
         this.players = [];
         this.players.push(new Player('玩家 (你)', 1000, false));
         for (let i = 1; i <= opponentCount; i++) {
-            this.players.push(new Player(`电脑 ${i}`, 1000, true));
+            const personality = {
+                aggression: Math.random(),      // 0-1
+                tightness: Math.random(),       // 0-1
+                bluffFrequency: Math.random()   // 0-1
+            };
+            this.players.push(new Player(`电脑 ${i}`, 1000, true, personality));
         }
 
         this.ui.setupOpponents(this.players.slice(1)); 
@@ -313,32 +318,95 @@ class Game {
     computerAI() {
         const cpu = this.players[this.activePlayerIndex];
         const diff = this.currentBet - cpu.currentBet;
-        const rand = Math.random();
-        
-        let action = 'fold';
+        const activePlayersCount = this.players.filter(p => p.isActive && !p.folded).length;
 
-        if (diff === 0) {
-            // Check or Raise
-            if (rand > 0.9) action = 'raise';
-            else action = 'check';
-        } else {
-            // Call or Fold
-            // Simple logic: if bet is small relative to stack, call more often
-            if (rand > 0.2) action = 'call';
-            else action = 'fold';
+        // 1. Calculate Win Rate
+        // OddsCalculator.calculate(hand, community, opponentCount)
+        let winRate = 0;
+        try {
+            // Using activePlayersCount - 1 as opponent count
+            winRate = OddsCalculator.calculate(cpu.hand, this.communityCards, activePlayersCount - 1);
+        } catch (e) {
+            console.error("Odds calculation error:", e);
+            winRate = 1 / activePlayersCount;
         }
 
-        // Validate chips
+        let action = 'fold';
+        console.log(`[AI ${cpu.name}] Phase: ${this.phase}, WR: ${winRate.toFixed(2)}, Agg: ${cpu.aggression.toFixed(2)}, Tight: ${cpu.tightness.toFixed(2)}, Bluff: ${cpu.bluffFrequency.toFixed(2)}`);
+
+        // 2. Decision Process
+        if (this.phase === 'pre-flop') {
+            // Pre-flop: Tightness driven
+            // Base threshold is roughly 1/N. Tightness increases this threshold.
+            // Example: 5 players (0.2). Tightness 0.5 -> Threshold 0.2. Tightness 1.0 -> Threshold 0.3.
+            const baseThreshold = (1 / activePlayersCount);
+            // Dynamic threshold: Tightness pushes the requirement up.
+            // Formula: Base + (Tightness * 0.15) - 0.05
+            // If Tightness=0 (Loose), req = Base - 0.05.
+            // If Tightness=1 (Tight), req = Base + 0.10.
+            const threshold = baseThreshold + (cpu.tightness * 0.15) - 0.05;
+
+            if (winRate >= threshold) {
+                // Play
+                if (diff === 0) action = 'check';
+                else action = 'call';
+
+                // Strong hand + Aggression -> Raise
+                if (winRate > threshold + 0.15 && Math.random() < cpu.aggression) {
+                    action = 'raise';
+                }
+            } else {
+                // Weak hand
+                if (diff === 0) action = 'check';
+                else action = 'fold';
+                
+                // Occasional pre-flop bluff? (Maybe too advanced, keeping it simple as per spec)
+            }
+
+        } else {
+            // Post-flop: Win Rate & Personality driven
+            const averageWinRate = 1 / activePlayersCount;
+            
+            // "High" Win Rate definition
+            if (winRate > averageWinRate * 1.1) { 
+                // High Win Rate: Value Bet or Slow Play
+                if (Math.random() < cpu.aggression) {
+                    action = 'raise'; // Value Bet
+                } else {
+                    if (diff === 0) action = 'check';
+                    else action = 'call'; // Slow Play
+                }
+            } else {
+                // Low/Medium Win Rate
+                // Check Bluff Frequency
+                if (Math.random() < cpu.bluffFrequency) {
+                    // Bluff!
+                    action = 'raise'; 
+                } else {
+                    // Normal play: Check or Fold
+                    if (diff === 0) action = 'check';
+                    else {
+                        // If Win Rate is decent (not total trash), maybe call small bet?
+                        // For now, sticking to "Low Win Rate -> Check/Fold" unless bluffing.
+                        action = 'fold';
+                    }
+                }
+            }
+        }
+
+        // 3. Validation
+        // If raising but not enough chips, downgrade to call (which handles all-in)
         if (action === 'raise') {
-             const raiseAmt = 20;
-             if (cpu.chips < (this.currentBet + raiseAmt - cpu.currentBet)) {
-                 action = 'call'; // Not enough to raise
+             const callAmt = diff;
+             // If we can't cover the call + min raise, just call (All-in)
+             if (cpu.chips <= callAmt) {
+                 action = 'call';
              }
         }
-        if (action === 'call') {
-            if (cpu.chips < diff) {
-                // All-in logic (simplified as call all chips)
-            }
+        
+        // If checking but facing a bet, must fold (or call if logic failed)
+        if (action === 'check' && diff > 0) {
+            action = 'fold';
         }
 
         this.handleAction(action);
