@@ -16,6 +16,7 @@ body {
     margin: 0;
     overflow: hidden; /* Prevent scrolling */
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
     width: 100vw;
     user-select: none;
     -webkit-user-select: none;
