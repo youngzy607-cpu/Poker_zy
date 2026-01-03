@@ -468,5 +468,6 @@ class Game {
         document.getElementById('btn-raise').disabled = true;
         document.getElementById('raise-slider').disabled = true;
         document.getElementById('btn-allin').disabled = true;
+        document.getElementById('raise-panel').style.display = 'none';
     }
 }
