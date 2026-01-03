@@ -5,6 +5,7 @@
 
 ### Windows 用户
 双击运行 `deploy_simple.bat`。
+*注意：脚本已配置为使用 `F:\Program Files\Git\cmd` 下的 Git。*
 
 ### Mac / Linux / Git Bash 用户
 在终端运行：

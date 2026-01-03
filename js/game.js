@@ -80,6 +80,9 @@ class Game {
     initGame(opponentCount) {
         document.getElementById('lobby-overlay').style.display = 'none';
         
+        // Initialize Audio Context on user gesture
+        if (window.soundManager) soundManager.init();
+
         this.players = [];
         this.players.push(new Player('玩家 (你)', 1000, false));
         for (let i = 1; i <= opponentCount; i++) {
@@ -117,6 +120,7 @@ class Game {
         this.postBlinds();
 
         // Deal Cards
+        soundManager.playCard();
         for(let i=0; i<2; i++) {
             this.players.forEach(p => {
                 if(p.isActive) p.receiveCard(this.deck.deal());
@@ -185,9 +189,11 @@ class Game {
             case 'fold':
                 player.folded = true;
                 message = "弃牌";
+                soundManager.playFold();
                 break;
             case 'check':
                 message = "过牌";
+                soundManager.playCheck();
                 break;
             case 'call':
                 const callAmt = this.currentBet - player.currentBet;
@@ -196,6 +202,7 @@ class Game {
                 this.pot += callAmt;
                 chipChange = callAmt;
                 message = "跟注";
+                soundManager.playChip();
                 break;
             case 'raise':
                 // amount is the "raise over" part. 
@@ -219,6 +226,7 @@ class Game {
                 this.currentBet = total;
                 chipChange = added;
                 message = `加注 ${raiseAmt}`;
+                soundManager.playChip();
                 
                 // CRITICAL: Raise resets the queue!
                 // Everyone else (active, not folded) must act again to match the bet.
@@ -295,6 +303,7 @@ class Game {
             setTimeout(() => this.computerAI(), 800);
         } else {
             this.ui.showMessage("轮到你了");
+            soundManager.playAlert();
             this.enableControls();
         }
     }
@@ -334,6 +343,7 @@ class Game {
     }
 
     dealCommunity(count) {
+        soundManager.playCard();
         for(let i=0; i<count; i++) {
             const card = this.deck.deal();
             this.communityCards.push(card);
@@ -438,6 +448,7 @@ class Game {
             
             msg += `赢了! (${bestScore.score.name})`;
             this.ui.showMessage(msg);
+            soundManager.playWin();
             
             setTimeout(() => {
                 this.pot = 0;

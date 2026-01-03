@@ -64,6 +64,28 @@ body {
     flex-direction: column;
 }
 
+/* Mute Button */
+.mute-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+}
+.mute-btn:hover { background: rgba(0,0,0,0.8); border-color: var(--accent-gold); }
+.mute-btn:active { transform: scale(0.95); }
+
 /* Table Background (Vertical Oval) */
 .table-background {
     position: absolute;
