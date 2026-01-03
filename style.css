@@ -285,6 +285,7 @@ body {
     width: var(--card-w);
     height: var(--card-h);
     background: white;
+    color: black;
     border-radius: 3px;
     display: flex;
     flex-direction: column;
@@ -314,7 +315,14 @@ body {
 .player-seat .cards {
     top: 50%;
     left: 80%; /* Shift right */
-    transform: translateY(-50%) scale(0.8); /* Smaller cards */
+    transform: translateY(-50%) scale(0.5); /* Smaller cards */
+}
+
+/* Left-side Card Position (For players on the right side of table) */
+.player-seat.cards-left .cards {
+    left: auto;
+    right: 80%;
+    /* flex-direction: row-reverse; removed to keep standard reading order */
 }
 
 /* User Specific Styles */

@@ -69,6 +69,13 @@ class UI {
             
             const div = document.createElement('div');
             div.className = 'player-seat opponent';
+            
+            // Adjust card position for players on the right side (Angles > 270)
+            // Angles: 270 is Top (12 o'clock). > 270 is Top-Right to Right.
+            if (angle > 270) {
+                div.classList.add('cards-left');
+            }
+
             div.id = `opponent-${index}`;
             div.style.left = `${left}%`;
             div.style.top = `${top}%`;
