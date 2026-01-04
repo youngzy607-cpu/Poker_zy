@@ -76,7 +76,7 @@
 
             <div class="lobby-actions">
                 <button id="btn-stats-close" class="btn-secondary">关闭</button>
-                <button id="btn-stats-reset" class="btn-secondary danger">重置数据</button>
+                <button id="btn-stats-reset" class="btn-secondary danger" style="display: none;">重置数据</button>
             </div>
         </div>
     </div>
@@ -94,11 +94,64 @@
         </div>
     </div>
 
-    <!-- Lobby / Start Screen (Single Player Setup) -->
+    <!-- Level Up Overlay -->
+    <div id="level-up-overlay" class="level-up-overlay" style="display: none;">
+        <div class="level-up-box">
+            <div class="level-up-title">BLIND LEVEL UP</div>
+            <div class="level-up-info">
+                <div class="old-blind">
+                    <span>10/20</span>
+                </div>
+                <div class="level-arrow">➜</div>
+                <div class="new-blind">
+                    <span id="level-up-new-blind">20/40</span>
+                </div>
+            </div>
+            <div class="level-up-desc">盲注级别已提升，节奏加快！</div>
+        </div>
+    </div>
+
+    <!-- Lobby / Start Screen (Mode Selection & Setup) -->
     <div id="lobby-overlay" class="lobby-overlay" style="display: none;">
-        <div class="lobby-box">
-            <h1>单机模式</h1>
-            <div class="lobby-info">总资产: <span id="lobby-total-chips" class="gold">0</span></div>
+        
+        <!-- State 1: Mode Selection -->
+        <div id="lobby-mode-select" class="lobby-box mode-select-box">
+            <h1>选择游戏模式</h1>
+            <div class="lobby-info">总资产: <span id="mode-total-chips" class="gold">0</span></div>
+            
+            <div class="modes-container">
+                <div class="mode-card" id="btn-mode-cash">
+                    <div class="mode-icon">💰</div>
+                    <h3>现金桌</h3>
+                    <p>Cash Game</p>
+                    <ul class="mode-features">
+                        <li>自由买入</li>
+                        <li>盲注固定 (5/10)</li>
+                        <li>随时离桌</li>
+                    </ul>
+                </div>
+
+                <div class="mode-card" id="btn-mode-tourney">
+                    <div class="mode-icon">🏆</div>
+                    <h3>锦标赛</h3>
+                    <p>Tournament</p>
+                    <ul class="mode-features">
+                        <li>报名费 $500</li>
+                        <li>前两名瓜分奖池</li>
+                        <li>盲注随局数上涨</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-mode-back" class="btn-secondary">返回主菜单</button>
+            </div>
+        </div>
+
+        <!-- State 2A: Cash Game Setup -->
+        <div id="lobby-setup-cash" class="lobby-box" style="display: none;">
+            <h1>现金桌设置</h1>
+            <div class="lobby-info">可用资金: <span id="cash-total-chips" class="gold">0</span></div>
             
             <p>选择电脑对手数量 (1-5)</p>
             <div class="opponent-selector">
@@ -113,15 +166,51 @@
             </div>
 
             <div class="lobby-actions">
-                <button id="btn-lobby-start">开始游戏</button>
-                <button id="btn-lobby-back" class="btn-secondary">返回</button>
+                <button id="btn-start-cash">开始游戏</button>
+                <button id="btn-back-mode-select" class="btn-secondary">返回</button>
             </div>
         </div>
+
+        <!-- State 2B: Tournament Setup -->
+        <div id="lobby-setup-tourney" class="lobby-box" style="display: none;">
+            <h1>锦标赛大厅</h1>
+            <div class="lobby-info">可用资金: <span id="tourney-total-chips" class="gold">0</span></div>
+            
+            <div class="tourney-info-card">
+                <div class="info-row">
+                    <span>报名费</span>
+                    <span class="gold">$500</span>
+                </div>
+                <div class="info-row">
+                    <span>初始记分牌</span>
+                    <span class="white">1500</span>
+                </div>
+                <div class="info-row">
+                    <span>参赛人数</span>
+                    <span class="white">5人 (1玩家 + 4电脑)</span>
+                </div>
+                <div class="info-row">
+                    <span>盲注结构</span>
+                    <span class="white">每 5 局翻倍</span>
+                </div>
+                <div class="prize-structure">
+                    <h4>奖金分配 (净赚)</h4>
+                    <div class="prize-row gold">🥇 冠军: +$1000</div>
+                    <div class="prize-row silver">🥈 亚军: +$500</div>
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-start-tourney">报名并开始</button>
+                <button id="btn-back-mode-select-2" class="btn-secondary">返回</button>
+            </div>
+        </div>
+
     </div>
 
     <div class="game-container" style="display: none;">
         <!-- 版本号 (左上角) -->
-        <div class="version-tag">v2.3.0</div>
+        <div class="version-tag">v2.5.1</div>
 
         <!-- 成就通知容器 -->
         <div id="achievement-notification-container" class="achievement-notification-container"></div>

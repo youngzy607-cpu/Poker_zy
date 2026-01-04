@@ -10,12 +10,12 @@ class SoundManager {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.context = new AudioContext();
             this.masterGain = this.context.createGain();
-            this.masterGain.gain.value = this.enabled ? 0.5 : 0; // Respect current mute state
+            this.masterGain.gain.value = this.enabled ? 0.5 : 0;
             this.masterGain.connect(this.context.destination);
         }
         if (this.context.state === 'suspended') {
             this.context.resume().then(() => {
-                console.log('AudioContext resumed successfully');
+                // console.log('AudioContext resumed successfully');
             }).catch(e => console.error(e));
         }
         return true;
@@ -24,12 +24,24 @@ class SoundManager {
     toggleMute() {
         this.enabled = !this.enabled;
         if (this.masterGain) {
-            this.masterGain.gain.value = this.enabled ? 0.5 : 0;
+            // Smooth transition to avoid clicks
+            const currentTime = this.context.currentTime;
+            this.masterGain.gain.cancelScheduledValues(currentTime);
+            this.masterGain.gain.setTargetAtTime(this.enabled ? 0.5 : 0, currentTime, 0.1);
         }
         return this.enabled;
     }
 
-    playTone(freq, type, duration, startTime = 0) {
+    // --- Haptic Feedback Helper ---
+    vibrate(pattern) {
+        if (navigator.vibrate) {
+            navigator.vibrate(pattern);
+        }
+    }
+
+    // --- Advanced Synthesis Helpers ---
+
+    playTone(freq, type, duration, startTime = 0, volume = 0.1) {
         if (!this.enabled || !this.context) return;
         
         const osc = this.context.createOscillator();
@@ -38,8 +50,8 @@ class SoundManager {
         osc.type = type;
         osc.frequency.setValueAtTime(freq, this.context.currentTime + startTime);
         
-        gain.gain.setValueAtTime(0.1, this.context.currentTime + startTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + startTime + duration);
+        gain.gain.setValueAtTime(volume, this.context.currentTime + startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + startTime + duration);
         
         osc.connect(gain);
         gain.connect(this.masterGain);
@@ -48,64 +60,127 @@ class SoundManager {
         osc.stop(this.context.currentTime + startTime + duration);
     }
 
-    playNoise(duration) {
+    playNoise(duration, type = 'white', filterFreq = 1000) {
         if (!this.enabled || !this.context) return;
 
         const bufferSize = this.context.sampleRate * duration;
         const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
         const data = buffer.getChannelData(0);
-
+        
+        let lastOut = 0;
         for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
+            if (type === 'white') {
+                data[i] = Math.random() * 2 - 1;
+            } else {
+                // Simple pink noise approximation
+                const white = Math.random() * 2 - 1;
+                data[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = data[i];
+                data[i] *= 3.5; 
+            }
         }
 
         const noise = this.context.createBufferSource();
         noise.buffer = buffer;
 
+        // Filter to make it sound more like paper/felt
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = filterFreq;
+
         const gain = this.context.createGain();
-        gain.gain.setValueAtTime(0.05, this.context.currentTime);
+        gain.gain.setValueAtTime(0.1, this.context.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
 
-        noise.connect(gain);
+        noise.connect(filter);
+        filter.connect(gain);
         gain.connect(this.masterGain);
+        
         noise.start();
     }
 
-    // Sound Effects
+    // --- Game Sounds ---
     
     playCard() {
-        // Sliding noise
-        this.playNoise(0.1);
+        // "Swish" sound: Filtered noise
+        this.playNoise(0.15, 'white', 800);
+        // Haptic: very light tap
+        this.vibrate(10);
     }
 
     playChip() {
-        // High pitched click
-        this.playTone(1200, 'sine', 0.05);
-        this.playTone(800, 'triangle', 0.05, 0.02);
+        // "Clack" sound: Two short, high-freq sine waves interfering
+        // Simulates the ceramic/clay impact
+        const now = this.context.currentTime;
+        
+        // Impact 1
+        this.playTone(2200, 'sine', 0.05, 0, 0.1);
+        // Impact 2 (slightly detuned)
+        this.playTone(2400, 'sine', 0.05, 0.005, 0.08);
+        
+        // Body resonance
+        this.playTone(600, 'triangle', 0.08, 0, 0.05);
+
+        // Haptic: Sharp click
+        this.vibrate(15);
     }
 
     playCheck() {
-        // Double knock
-        this.playTone(150, 'square', 0.05);
-        this.playTone(150, 'square', 0.05, 0.1);
+        // "Knock" sound: Low freq impact
+        this.playTone(100, 'square', 0.1, 0, 0.1); // Thud
+        this.playTone(150, 'sine', 0.1, 0.02, 0.1); // Resonance
+        
+        // Double knock pattern sometimes? Standard is usually double tap for check.
+        // Let's do a quick double-tap sound
+        setTimeout(() => {
+             if (this.context) {
+                this.playTone(90, 'square', 0.08, 0, 0.08);
+             }
+        }, 120);
+
+        this.vibrate([20, 50, 20]);
     }
 
     playFold() {
-        // Lower sliding noise
-        this.playNoise(0.2);
+        // "Muck" sound: Softer, lower pitched slide
+        this.playNoise(0.25, 'white', 400);
+        this.vibrate(20);
     }
 
     playAlert() {
-        // Ding
-        this.playTone(880, 'sine', 0.3);
+        // "Ding": Attention grabber for turn
+        this.playTone(880, 'sine', 0.4, 0, 0.1); // A5
+        this.playTone(1760, 'sine', 0.4, 0.05, 0.05); // A6 (harmonic)
+        this.vibrate([50, 50, 50]);
     }
 
     playWin() {
-        // Arpeggio
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C Major
+        // "Victory" Fanfare: C Major Arpeggio with glissando feel
+        const now = this.context.currentTime;
+        const notes = [
+            523.25, // C5
+            659.25, // E5
+            783.99, // G5
+            1046.50, // C6
+            1318.51, // E6
+            1567.98  // G6
+        ];
+        
         notes.forEach((freq, i) => {
-            this.playTone(freq, 'sine', 0.2, i * 0.1);
+            // Staggered start
+            this.playTone(freq, 'triangle', 0.4, i * 0.08, 0.1);
+            this.playTone(freq, 'sine', 0.6, i * 0.08, 0.1); // Add body
         });
+
+        // Haptic: Success vibration
+        this.vibrate([50, 100, 50, 100, 200]);
+    }
+
+    playAllIn() {
+        // Dramatic tension sound
+        this.playTone(100, 'sawtooth', 1.0, 0, 0.2); // Low growl
+        this.playTone(200, 'sine', 1.0, 0, 0.2);
+        this.vibrate(500);
     }
 }
 

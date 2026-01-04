@@ -12,6 +12,23 @@ class Game {
         this.ui = new UI();
         this.timers = []; // Track active timers
         
+        // Game Mode State
+        this.mode = 'cash'; // 'cash' or 'tournament'
+        this.handCount = 0;
+        this.blinds = { sb: 5, bb: 10 };
+        this.tournamentConfig = {
+            buyIn: 500,
+            startChips: 1500,
+            blindIncreaseEvery: 5,
+            prizes: [1500, 1000] // Net profit: 1st=+1000, 2nd=+500. Total Payout from pool: 2500? No, this is "Net". 
+                                 // Actually logic: 
+                                 // 1st gets 1500 chips worth of value? No, cash.
+                                 // Let's store "Payout" amount. 
+                                 // User pays 500. 
+                                 // 1st Prize: 1500 (Net +1000). 
+                                 // 2nd Prize: 1000 (Net +500).
+        };
+
         // Bankroll Management
         this.bankroll = 0; // Chips remaining outside the table
         
@@ -31,46 +48,88 @@ class Game {
     }
 
     bindEvents() {
-        document.getElementById('btn-lobby-start').addEventListener('click', () => {
-            const count = parseInt(document.getElementById('opponent-count').value);
-            const buyIn = parseInt(document.getElementById('buyin-amount').value);
-            this.initGame(count, buyIn);
-        });
+        // --- Mode Selection UI Handlers ---
+        const lobbyOverlay = document.getElementById('lobby-overlay');
+        const modeSelect = document.getElementById('lobby-mode-select');
+        const setupCash = document.getElementById('lobby-setup-cash');
+        const setupTourney = document.getElementById('lobby-setup-tourney');
 
-        // Main Menu & Navigation Handlers
+        // 1. Open Mode Selection (Main Menu -> Lobby)
         document.getElementById('btn-menu-single').addEventListener('click', () => {
-            // Update Lobby UI with current persistent chips
             const profile = DataManager.load();
-            let totalChips = profile.chips;
             
-            // Bankruptcy Check
-            if (totalChips <= 0) {
-                 totalChips = 1000;
+            // Bankruptcy Check (Global)
+            if (profile.chips <= 0) {
                  DataManager.updateChips(1000);
                  alert("破产补助：已为您补充 1000 筹码");
+                 profile.chips = 1000;
             }
             
-            document.getElementById('lobby-total-chips').innerText = totalChips;
-            
-            // Setup Buy-in Slider
-            const slider = document.getElementById('buyin-amount');
-            const display = document.getElementById('buyin-display');
-            
-            // Logic: Min 100, Max Total. Default 50% or 1000.
-            const minBuyIn = 100;
-            const maxBuyIn = totalChips;
-            
-            slider.min = minBuyIn;
-            slider.max = maxBuyIn;
-            slider.value = Math.min(1000, maxBuyIn); // Default to 1000 or max
-            display.innerText = slider.value;
-            
-            slider.oninput = function() { display.innerText = this.value; }
-            
+            document.getElementById('mode-total-chips').innerText = profile.chips;
+            document.getElementById('cash-total-chips').innerText = profile.chips;
+            document.getElementById('tourney-total-chips').innerText = profile.chips;
+
             document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('lobby-overlay').style.display = 'flex';
+            lobbyOverlay.style.display = 'flex';
+            modeSelect.style.display = 'block';
+            setupCash.style.display = 'none';
+            setupTourney.style.display = 'none';
         });
 
+        // 2. Select Cash Game
+        document.getElementById('btn-mode-cash').addEventListener('click', () => {
+            modeSelect.style.display = 'none';
+            setupCash.style.display = 'block';
+            
+            // Setup Cash Slider
+            const profile = DataManager.load();
+            const slider = document.getElementById('buyin-amount');
+            const display = document.getElementById('buyin-display');
+            slider.min = 100;
+            slider.max = profile.chips;
+            slider.value = Math.min(1000, profile.chips);
+            display.innerText = slider.value;
+            slider.oninput = function() { display.innerText = this.value; }
+        });
+
+        // 3. Select Tournament
+        document.getElementById('btn-mode-tourney').addEventListener('click', () => {
+            modeSelect.style.display = 'none';
+            setupTourney.style.display = 'block';
+        });
+
+        // 4. Back Buttons
+        document.getElementById('btn-mode-back').addEventListener('click', () => {
+            lobbyOverlay.style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        });
+        document.getElementById('btn-back-mode-select').addEventListener('click', () => {
+            setupCash.style.display = 'none';
+            modeSelect.style.display = 'block';
+        });
+        document.getElementById('btn-back-mode-select-2').addEventListener('click', () => {
+            setupTourney.style.display = 'none';
+            modeSelect.style.display = 'block';
+        });
+
+        // 5. Start Buttons
+        document.getElementById('btn-start-cash').addEventListener('click', () => {
+            const count = parseInt(document.getElementById('opponent-count').value);
+            const buyIn = parseInt(document.getElementById('buyin-amount').value);
+            this.initGame('cash', { opponentCount: count, buyIn: buyIn });
+        });
+
+        document.getElementById('btn-start-tourney').addEventListener('click', () => {
+            const profile = DataManager.load();
+            if (profile.chips < 500) {
+                alert('您的资金不足 $500，无法报名锦标赛！');
+                return;
+            }
+            this.initGame('tournament', { opponentCount: 4, buyIn: 500 });
+        });
+
+
+        // Other UI Handlers
         document.getElementById('btn-menu-multi').addEventListener('click', () => {
             alert('联机对战功能开发中，敬请期待！');
         });
@@ -85,7 +144,6 @@ class Game {
              document.getElementById('stat-best-hand').innerText = data.stats.bestHand.name !== '无' ? `${data.stats.bestHand.name}` : '暂无';
              document.getElementById('stat-biggest-pot').innerText = data.stats.biggestPot;
              
-             // History List
              const historyContainer = document.getElementById('history-container');
              historyContainer.innerHTML = '';
              data.history.forEach(item => {
@@ -118,23 +176,24 @@ class Game {
 
         document.getElementById('btn-menu-exit').addEventListener('click', () => {
             if(confirm('确定要退出游戏吗？')) {
-                window.close(); // Only works if opened via script, but good for intent
-                // Fallback for standalone/web
+                window.close();
                 document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#111;color:#fff;"><h1>已退出游戏</h1></div>';
             }
         });
 
-        document.getElementById('btn-lobby-back').addEventListener('click', () => {
-            document.getElementById('lobby-overlay').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'flex';
-        });
-
         document.getElementById('btn-back-menu').addEventListener('click', () => {
-            if(confirm('确定要返回主菜单吗？当前牌局将直接结束，您的筹码（包含场外余额）将自动保存。')) {
+            let msg = '确定要返回主菜单吗？';
+            if (this.mode === 'cash') {
+                msg += '当前牌局将直接结束，您的筹码将自动保存。';
+            } else {
+                msg += '锦标赛中途退出将被视为弃权，无法获得退款或奖金！';
+            }
+            
+            if(confirm(msg)) {
                 this.stopGame(); 
                 document.querySelector('.game-container').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'flex';
-                this.updateMenuChips(); // Refresh chips display in menu
+                this.updateMenuChips();
             }
         });
 
@@ -151,10 +210,8 @@ class Game {
         });
         
         document.getElementById('btn-raise').addEventListener('click', () => {
-             // Show raise inputs, hide main actions
              document.getElementById('main-actions').style.display = 'none';
              document.getElementById('raise-inputs').style.display = 'flex';
-             // Update slider range again just in case
              this.updateButtons();
         });
         
@@ -170,7 +227,6 @@ class Game {
              document.getElementById('main-actions').style.display = 'flex';
         });
         
-        // Plus/Minus buttons
         document.querySelector('.btn-adjust.minus').addEventListener('click', () => {
              slider.stepDown();
              slider.dispatchEvent(new Event('input'));
@@ -181,7 +237,6 @@ class Game {
         });
         
         document.getElementById('btn-quick-allin').addEventListener('click', () => {
-             // All in means raise to max chips
              const maxRaise = this.getMaxRaiseAmount();
              this.handleAction('raise', maxRaise);
         });
@@ -190,26 +245,31 @@ class Game {
     }
 
     stopGame() {
-        // Save Chips Logic
-        if (this.players && this.players.length > 0) {
-            const user = this.players[0];
-            const currentTotal = this.bankroll + user.chips;
-            DataManager.updateChips(currentTotal);
+        if (this.mode === 'cash') {
+            // Save Chips Logic for Cash Game
+            if (this.players && this.players.length > 0) {
+                const user = this.players[0];
+                const currentTotal = this.bankroll + user.chips;
+                DataManager.updateChips(currentTotal);
+            }
+        } else {
+            // Tournament: No refund if quit manually.
+            // Bankroll was already deducted at init.
         }
     
-        // Reset game state to initial values
-        this.clearAllTimers(); // Stop AI and loops
+        // Reset game state
+        this.clearAllTimers();
         this.players = [];
         this.communityCards = [];
         this.pot = 0;
         this.currentBet = 0;
         this.phase = 'pre-flop';
         this.playersToAct = [];
-        this.activePlayerIndex = -1; // Invalid index to prevent AI running
+        this.activePlayerIndex = -1;
         
         this.ui.updateCommunityCards([]);
         this.ui.updatePot(0);
-        document.getElementById('opponents-container').innerHTML = ''; // Clear opponents
+        document.getElementById('opponents-container').innerHTML = '';
     }
 
     getMaxRaiseAmount() {
@@ -224,38 +284,61 @@ class Game {
         if (el) el.innerText = data.chips;
     }
 
-    initGame(opponentCount, buyInAmount) {
+    initGame(mode, config) {
+        this.mode = mode;
+        const opponentCount = config.opponentCount;
+        const buyInAmount = config.buyIn;
+
         document.getElementById('lobby-overlay').style.display = 'none';
-        document.querySelector('.game-container').style.display = 'flex'; // Show Game
+        document.querySelector('.game-container').style.display = 'flex';
         
-        // Initialize Audio Context explicitly on Start button click
         if (typeof soundManager !== 'undefined') {
             soundManager.init();
         }
 
-        // Setup Bankroll Logic
-        // buyInAmount is what we take to the table.
-        // this.bankroll is what remains in "safe".
+        // --- Bankroll Logic ---
         const profile = DataManager.load();
-        const total = profile.chips;
-        this.bankroll = total - buyInAmount;
-        // Safety check
-        if (this.bankroll < 0) this.bankroll = 0;
         
-        // Immediately save the "deduction" (optional, but safer to treat chips as table chips + bankroll)
-        // For simplicity, we only update persistence on endHand or exit.
-        // BUT if user closes tab during game, they lose table chips if we don't save "in-game" state.
-        // For now, assume graceful exit.
+        if (this.mode === 'cash') {
+            this.bankroll = profile.chips - buyInAmount;
+            // Immediate save to prevent duplication if crash
+            DataManager.updateChips(this.bankroll); 
+            
+            this.blinds = { sb: 5, bb: 10 }; // Reset blinds
+            this.handCount = 0;
+            
+            // Init Players
+            this.players = [];
+            this.players.push(new Player('玩家 (你)', buyInAmount, false));
+            for (let i = 1; i <= opponentCount; i++) {
+                const personality = {
+                    aggression: Math.random(),
+                    tightness: Math.random(),
+                    bluffFrequency: Math.random()
+                };
+                this.players.push(new Player(`电脑 ${i}`, buyInAmount, true, personality));
+            }
+            
+        } else {
+            // Tournament Logic
+            // Deduct buy-in permanently
+            this.bankroll = profile.chips - buyInAmount;
+            DataManager.updateChips(this.bankroll);
+            
+            this.blinds = { sb: 10, bb: 20 }; // Start slightly higher? Or 5/10. Let's do 10/20.
+            this.handCount = 0;
+            const startChips = this.tournamentConfig.startChips; // 1500
 
-        this.players = [];
-        this.players.push(new Player('玩家 (你)', buyInAmount, false));
-        for (let i = 1; i <= opponentCount; i++) {
-            const personality = {
-                aggression: Math.random(),      // 0-1
-                tightness: Math.random(),       // 0-1
-                bluffFrequency: Math.random()   // 0-1
-            };
-            this.players.push(new Player(`电脑 ${i}`, buyInAmount, true, personality)); // Opponents match buy-in
+            this.players = [];
+            this.players.push(new Player('玩家 (你)', startChips, false));
+            for (let i = 1; i <= opponentCount; i++) {
+                const personality = {
+                    aggression: Math.random(),
+                    tightness: Math.random(),
+                    bluffFrequency: Math.random()
+                };
+                this.players.push(new Player(`电脑 ${i}`, startChips, true, personality));
+            }
         }
 
         this.ui.setupOpponents(this.players.slice(1)); 
@@ -263,18 +346,78 @@ class Game {
     }
 
     startNewHand() {
-        this.players.forEach(p => {
-            if (p.chips <= 0) p.isActive = false;
-        });
-
-        const activePlayers = this.players.filter(p => p.isActive);
-        if (activePlayers.length < 2) {
-            this.ui.showMessage(activePlayers[0] === this.players[0] ? "恭喜！你赢得了所有筹码！" : "游戏结束，你输光了。");
-            document.getElementById('btn-restart').style.display = 'inline-block';
-            this.disableControls();
-            return;
+        // --- Tournament Knockout Check ---
+        if (this.mode === 'tournament') {
+            // Remove players with 0 chips
+            const activeBefore = this.players.length;
+            this.players = this.players.filter(p => p.chips > 0);
+            
+            // Check if User Died
+            const user = this.players.find(p => !p.isComputer);
+            if (!user) {
+                // User Eliminated
+                // Calculate Rank
+                const rank = this.players.length + 1; // Survivors + Me
+                this.handleTournamentOver(rank);
+                return;
+            }
+            
+            // Check if Winner
+            if (this.players.length === 1 && this.players[0] === user) {
+                this.handleTournamentOver(1);
+                return;
+            }
+            
+            // If opponents died, refresh UI
+            if (this.players.length < activeBefore) {
+                 this.ui.setupOpponents(this.players.filter(p => p.isComputer));
+            }
+        } else {
+            // Cash Game: Just mark inactive
+            this.players.forEach(p => {
+                if (p.chips <= 0) p.isActive = false;
+            });
+            const activePlayers = this.players.filter(p => p.isActive);
+            if (activePlayers.length < 2) {
+                this.ui.showMessage(activePlayers[0] === this.players[0] ? "恭喜！你赢得了所有筹码！" : "游戏结束，你输光了。");
+                document.getElementById('btn-restart').style.display = 'inline-block';
+                this.disableControls();
+                return;
+            }
         }
 
+        // --- Blind Increase Logic (Tournament) ---
+        if (this.mode === 'tournament') {
+            this.handCount++;
+            if (this.handCount > 1 && this.handCount % this.tournamentConfig.blindIncreaseEvery === 1) {
+                // Increase Blinds! (Triggered at start of 6th, 11th... hand)
+                const oldSb = this.blinds.sb;
+                const oldBb = this.blinds.bb;
+                
+                this.blinds.sb *= 2;
+                this.blinds.bb *= 2;
+                
+                // Show Level Up Overlay
+                const overlay = document.getElementById('level-up-overlay');
+                document.querySelector('.old-blind span').innerText = `${oldSb}/${oldBb}`;
+                document.getElementById('level-up-new-blind').innerText = `${this.blinds.sb}/${this.blinds.bb}`;
+                
+                overlay.style.display = 'flex';
+                soundManager.playAlert();
+                
+                // Pause game for 3 seconds then start
+                this.setTimeout(() => {
+                    overlay.style.display = 'none';
+                    this.startHandSequence();
+                }, 3000);
+                return; // Stop here, wait for timeout to resume
+            }
+        }
+
+        this.startHandSequence();
+    }
+
+    startHandSequence() {
         this.deck.reset();
         this.deck.shuffle();
         this.players.forEach(p => p.resetHand());
@@ -285,30 +428,29 @@ class Game {
         
         this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
         
-        // Post Blinds
         this.postBlinds();
 
-        // Deal Cards
         soundManager.playCard();
         for(let i=0; i<2; i++) {
             this.players.forEach(p => {
-                if(p.isActive) p.receiveCard(this.deck.deal());
+                if(this.mode === 'tournament' || p.isActive) p.receiveCard(this.deck.deal());
             });
         }
 
         this.ui.updateCommunityCards([]);
         this.ui.updatePot(this.pot);
         this.ui.updatePlayers(this.players);
-        this.ui.showMessage("新的一局开始！");
         
-        // Track user start chips for profit calculation
+        if (this.mode === 'tournament') {
+             // Show Blind Info
+             this.ui.showMessage(`第 ${this.handCount} 局 (盲注 ${this.blinds.sb}/${this.blinds.bb})`);
+        } else {
+             this.ui.showMessage("新的一局开始！");
+        }
+        
         this.userStartChips = this.players[0].chips;
         
-        // Populate playersToAct queue
-        // Pre-flop starts at UTG (Dealer + 3)
-        // Order: UTG -> ... -> Dealer -> SB -> BB
         this.populateQueue((this.dealerIndex + 3) % this.players.length);
-
         this.nextTurn();
     }
 
@@ -316,32 +458,82 @@ class Game {
         const sbIndex = (this.dealerIndex + 1) % this.players.length;
         const bbIndex = (this.dealerIndex + 2) % this.players.length;
         
-        const sb = 5;
-        const bb = 10;
+        const sb = this.blinds.sb;
+        const bb = this.blinds.bb;
 
-        if(this.players[sbIndex].isActive) {
-            this.players[sbIndex].chips -= sb;
-            this.players[sbIndex].currentBet = sb;
-            this.pot += sb;
+        // Force post. If not enough chips, All-in.
+        // Helper
+        const post = (player, amount) => {
+            if (player.chips < amount) amount = player.chips;
+            player.chips -= amount;
+            player.currentBet = amount;
+            this.pot += amount;
+        };
+
+        if(this.players[sbIndex].isActive || this.mode === 'tournament') {
+            post(this.players[sbIndex], sb);
         }
 
-        if(this.players[bbIndex].isActive) {
-            this.players[bbIndex].chips -= bb;
-            this.players[bbIndex].currentBet = bb;
-            this.pot += bb;
+        if(this.players[bbIndex].isActive || this.mode === 'tournament') {
+            post(this.players[bbIndex], bb);
         }
 
         this.currentBet = bb;
     }
 
+    handleTournamentOver(rank) {
+        let msg = "";
+        let reward = 0;
+        
+        if (rank === 1) {
+            msg = "🏆 恭喜！你是锦标赛冠军！获得奖金 $1500！";
+            reward = 1500;
+            soundManager.playWin();
+        } else if (rank === 2) {
+            msg = "🥈 获得亚军！获得奖金 $1000！";
+            reward = 1000;
+        } else {
+            msg = `❌ 你被淘汰了。第 ${rank} 名。`;
+        }
+        
+        this.ui.showMessage(msg);
+        this.disableControls();
+        
+        // Save Reward
+        if (reward > 0) {
+            const profile = DataManager.load();
+            DataManager.updateChips(profile.chips + reward);
+            
+            // Record History
+            DataManager.recordHand({
+                profit: reward - 500, // Net Profit
+                hand: { name: `锦标赛第${rank}名` },
+                pot: 0,
+                cards: []
+            });
+        } else {
+             // Record Loss
+             DataManager.recordHand({
+                profit: -500,
+                hand: { name: `锦标赛第${rank}名` },
+                pot: 0,
+                cards: []
+            });
+        }
+        
+        document.getElementById('btn-restart').style.display = 'inline-block';
+        document.getElementById('btn-restart').innerText = "返回大厅";
+        document.getElementById('btn-restart').onclick = () => location.reload();
+    }
+
     populateQueue(startIndex) {
         this.playersToAct = [];
         const count = this.players.length;
-        // Add all active players starting from startIndex
         for (let i = 0; i < count; i++) {
             const idx = (startIndex + i) % count;
             const p = this.players[idx];
-            if (p.isActive && !p.folded && p.chips > 0) {
+            // In tournament, all remaining players are active
+            if ((this.mode === 'tournament' || p.isActive) && !p.folded && p.chips > 0) {
                 this.playersToAct.push(idx);
             }
         }
@@ -377,21 +569,12 @@ class Game {
                 soundManager.playChip();
                 break;
             case 'raise':
-                // amount is the "raise over" part. 
-                // e.g. currentBet=20, raiseAmt=20 -> totalBet=40.
                 let raiseAmt = amount;
-                if (raiseAmt <= 0) raiseAmt = 20; // Default min raise if 0 passed
+                if (raiseAmt <= 0) raiseAmt = this.blinds.bb * 2; // Min raise logic
                 
                 const total = this.currentBet + raiseAmt;
                 const added = total - player.currentBet;
                 
-                // Validate if player has enough chips
-                if (player.chips < added) {
-                     // Should be All-in
-                     // Adjust raiseAmt so that total added equals chips
-                     // added = player.chips
-                }
-
                 player.chips -= added;
                 player.currentBet += added;
                 this.pot += added;
@@ -400,65 +583,60 @@ class Game {
                 message = `加注 ${raiseAmt}`;
                 soundManager.playChip();
                 
-                // CRITICAL: Raise resets the queue!
-                // Everyone else (active, not folded) must act again to match the bet.
-                // Starting from the NEXT player.
                 const nextIdx = (playerIndex + 1) % this.players.length;
                 this.populateQueue(nextIdx);
-                // The current player (raiser) is already processed, so we don't need to pop them from the NEW queue 
-                // because populateQueue adds everyone. 
-                // Let's filter out the current raiser from the new queue.
                 this.playersToAct = this.playersToAct.filter(idx => idx !== playerIndex);
                 break;
         }
 
         this.ui.showMessage(`${player.name} ${message}`);
-        this.ui.updatePlayers(this.players); // Updates chips text immediately, animation follows
+        this.ui.updatePlayers(this.players); 
         
-        // --- Chip Animation ---
         if (chipChange > 0) {
-            // Find player element
             let playerEl;
             if (playerIndex === 0) playerEl = document.getElementById('player-area').querySelector('.player-info');
             else {
+                // In Tournament, indices shift as players die. 
+                // But UI setupOpponents re-renders. We need to find the correct DOM element.
+                // UI.js assigns ID 'opponent-X' based on array index.
+                // BUT if players array shrinks, indices change.
+                // We should rely on UI to handle mapping or just grab by index if it matches UI render order.
+                // Current UI implementation: setupOpponents iterates (players.slice(1)).
+                // So opponent-0 is players[1], opponent-1 is players[2].
+                // Yes, consistent.
                 const opp = document.getElementById(`opponent-${playerIndex-1}`);
                 if (opp) playerEl = opp.querySelector('.player-info');
             }
             const potEl = document.querySelector('.pot-display');
             
-            // Animate
             this.ui.animateChips(playerEl, potEl, chipChange, () => {
-                 this.ui.updatePot(this.pot); // Update pot text after animation lands
+                 this.ui.updatePot(this.pot); 
             });
         } else {
             this.ui.updatePot(this.pot);
         }
 
-        // Delay for next turn
         this.setTimeout(() => this.nextTurn(), player.isComputer ? 600 : 400);
     }
 
     nextTurn() {
-        // 1. Check if only one player remains (Win by fold)
-        const survivors = this.players.filter(p => p.isActive && !p.folded);
+        const survivors = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded);
         if (survivors.length === 1) {
             this.endHand(survivors[0]);
             return;
         }
 
-        // 2. Check if queue is empty -> Next Phase
         if (this.playersToAct.length === 0) {
             this.nextPhase();
             return;
         }
 
-        // 3. Get next player from queue
         this.activePlayerIndex = this.playersToAct.shift();
         const player = this.players[this.activePlayerIndex];
 
-        // Validate player state (just in case)
-        if (!player.isActive || player.folded) {
-            this.nextTurn(); // Skip
+        // Validate
+        if ((this.mode !== 'tournament' && !player.isActive) || player.folded) {
+            this.nextTurn(); 
             return;
         }
 
@@ -466,10 +644,7 @@ class Game {
     }
 
     processTurn() {
-        // Removed: this.ui.highlightActivePlayer(this.activePlayerIndex); (Deprecated)
         const player = this.players[this.activePlayerIndex];
-        
-        // BUG FIX: Existence check
         if (!player) return; 
 
         if (player.isComputer) {
@@ -484,22 +659,16 @@ class Game {
     }
 
     computerAI() {
-        // BUG FIX: Existence check
         if (!this.players || this.activePlayerIndex >= this.players.length || this.activePlayerIndex < 0) return;
         
         const cpu = this.players[this.activePlayerIndex];
-        
-        // Extra safety check
         if (!cpu) return;
         
         const diff = this.currentBet - cpu.currentBet;
-        const activePlayersCount = this.players.filter(p => p.isActive && !p.folded).length;
+        const activePlayersCount = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded).length;
 
-        // 1. Calculate Win Rate
-        // OddsCalculator.calculate(hand, community, opponentCount)
         let winRate = 0;
         try {
-            // Using activePlayersCount - 1 as opponent count
             winRate = OddsCalculator.calculate(cpu.hand, this.communityCards, activePlayersCount - 1);
         } catch (e) {
             console.error("Odds calculation error:", e);
@@ -507,79 +676,50 @@ class Game {
         }
 
         let action = 'fold';
-        console.log(`[AI ${cpu.name}] Phase: ${this.phase}, WR: ${winRate.toFixed(2)}, Agg: ${cpu.aggression.toFixed(2)}, Tight: ${cpu.tightness.toFixed(2)}, Bluff: ${cpu.bluffFrequency.toFixed(2)}`);
+        // console.log(`[AI ${cpu.name}] WR: ${winRate.toFixed(2)}`);
 
-        // 2. Decision Process
         if (this.phase === 'pre-flop') {
-            // Pre-flop: Tightness driven
-            // Base threshold is roughly 1/N. Tightness increases this threshold.
-            // Example: 5 players (0.2). Tightness 0.5 -> Threshold 0.2. Tightness 1.0 -> Threshold 0.3.
             const baseThreshold = (1 / activePlayersCount);
-            // Dynamic threshold: Tightness pushes the requirement up.
-            // Formula: Base + (Tightness * 0.15) - 0.05
-            // If Tightness=0 (Loose), req = Base - 0.05.
-            // If Tightness=1 (Tight), req = Base + 0.10.
             const threshold = baseThreshold + (cpu.tightness * 0.15) - 0.05;
 
             if (winRate >= threshold) {
-                // Play
                 if (diff === 0) action = 'check';
                 else action = 'call';
 
-                // Strong hand + Aggression -> Raise
                 if (winRate > threshold + 0.15 && Math.random() < cpu.aggression) {
                     action = 'raise';
                 }
             } else {
-                // Weak hand
                 if (diff === 0) action = 'check';
                 else action = 'fold';
-                
-                // Occasional pre-flop bluff? (Maybe too advanced, keeping it simple as per spec)
             }
 
         } else {
-            // Post-flop: Win Rate & Personality driven
             const averageWinRate = 1 / activePlayersCount;
-            
-            // "High" Win Rate definition
             if (winRate > averageWinRate * 1.1) { 
-                // High Win Rate: Value Bet or Slow Play
                 if (Math.random() < cpu.aggression) {
-                    action = 'raise'; // Value Bet
-                } else {
-                    if (diff === 0) action = 'check';
-                    else action = 'call'; // Slow Play
-                }
-            } else {
-                // Low/Medium Win Rate
-                // Check Bluff Frequency
-                if (Math.random() < cpu.bluffFrequency) {
-                    // Bluff!
                     action = 'raise'; 
                 } else {
-                    // Normal play: Check or Fold
                     if (diff === 0) action = 'check';
-                    else {
-                        // If Win Rate is decent (not total trash), maybe call small bet?
-                        // For now, sticking to "Low Win Rate -> Check/Fold" unless bluffing.
-                        action = 'fold';
-                    }
+                    else action = 'call'; 
+                }
+            } else {
+                if (Math.random() < cpu.bluffFrequency) {
+                    action = 'raise'; 
+                } else {
+                    if (diff === 0) action = 'check';
+                    else action = 'fold';
                 }
             }
         }
 
-        // 3. Validation
-        // If raising but not enough chips, downgrade to call (which handles all-in)
         if (action === 'raise') {
              const callAmt = diff;
-             // If we can't cover the call + min raise, just call (All-in)
              if (cpu.chips <= callAmt) {
                  action = 'call';
              }
         }
         
-        // If checking but facing a bet, must fold (or call if logic failed)
         if (action === 'check' && diff > 0) {
             action = 'fold';
         }
@@ -619,9 +759,6 @@ class Game {
         this.ui.updatePot(this.pot);
         this.ui.showMessage(`进入阶段: ${this.phase}`);
 
-        // Populate queue for new street
-        // Order: SB -> BB -> ... -> Button (Dealer)
-        // Start from Dealer + 1
         this.populateQueue((this.dealerIndex + 1) % this.players.length);
         
         this.setTimeout(() => this.nextTurn(), 1000);
@@ -631,23 +768,13 @@ class Game {
         if (winner) {
             winner.chips += this.pot;
             this.ui.showMessage(`${winner.name} 赢了 ${this.pot} 筹码!`);
-            
-            // If user won, update stats immediately? Or wait for end of session?
-            // Better to update persistence at end of every hand to prevent data loss.
         }
         
-        // Save user state
-        const user = this.players[0];
-        // Update persistent chips: Bankroll + Current Table Chips
-        DataManager.updateChips(this.bankroll + user.chips);
-        
-        // We need to record hand history. But "endHand" is for early fold win.
-        // If early fold win, user hand is not fully played out, but profit is real.
-        // Let's record simple result.
-        // We need to track how many chips user had at start of hand to calculate profit.
-        // Or we can just calculate profit = (current - previous_saved).
-        // To simplify, we might want to refactor where we record history.
-        // For now, let's just save chips.
+        // Save user state (Only in Cash Mode)
+        if (this.mode === 'cash') {
+            const user = this.players[0];
+            DataManager.updateChips(this.bankroll + user.chips);
+        }
         
         this.pot = 0;
         this.ui.updatePlayers(this.players);
@@ -663,7 +790,7 @@ class Game {
     determineWinner() {
         this.ui.updatePlayers(this.players, true); 
         
-        const activeSurvivors = this.players.filter(p => p.isActive && !p.folded);
+        const activeSurvivors = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded);
         const scores = activeSurvivors.map(p => {
             return {
                 player: p,
@@ -693,19 +820,15 @@ class Game {
         const winAmount = Math.floor(this.pot / winners.length);
         let msg = "";
         
-        // Wait for potential river card animation
         this.setTimeout(() => {
             winners.forEach((w, i) => {
                 const pIdx = this.players.indexOf(w.player);
-                // Stagger animations if multiple winners
                 this.setTimeout(() => {
                     this.ui.animatePotToWinner(pIdx, () => {
-                         // After animation, update chips text
                          w.player.chips += winAmount;
                          this.ui.updatePlayers(this.players, true);
                     });
                 }, i * 500);
-                
                 msg += `${w.player.name} `;
             });
             
@@ -718,36 +841,24 @@ class Game {
             const userScore = scores.find(s => s.player === user);
             const userWon = winners.some(w => w.player === user);
             
-            // Calculate Profit: Current Chips - Start Chips (Need to track start chips)
-            // Simplified: We assume we just compare to stored value before this update?
-            // Better: DataManager.updateChips overwrites.
-            // Let's rely on DataManager to handle "session" profit if we want, but for "hand history":
-            // We need to know if user won or lost this specific hand.
-            // Start Chips: this.userStartChips (need to add this property to Game class)
-            const profit = user.chips - this.userStartChips + (userWon ? winAmount : 0); 
-            // Note: user.chips hasn't been updated with winAmount in the object reference YET inside this callback loop context fully? 
-            // Wait, w.player.chips += winAmount happens inside the animation callback.
-            // So we should do saving AFTER animation.
-            
             this.setTimeout(() => {
-                // Now chips are updated
-                const actualProfit = user.chips - this.userStartChips;
-                // Update persistent chips: Bankroll + Current Table Chips
-                DataManager.updateChips(this.bankroll + user.chips);
-                
-                DataManager.recordHand({
-                    profit: actualProfit,
-                    hand: userScore ? userScore.score : null,
-                    pot: this.pot,
-                    cards: user.hand.map(c => c.toString()) // Simple string representation
-                });
+                if (this.mode === 'cash') {
+                    const actualProfit = user.chips - this.userStartChips;
+                    DataManager.updateChips(this.bankroll + user.chips);
+                    DataManager.recordHand({
+                        profit: actualProfit,
+                        hand: userScore ? userScore.score : null,
+                        pot: this.pot,
+                        cards: user.hand.map(c => c.toString())
+                    });
+                }
                 
                 this.pot = 0;
                 this.ui.updatePot(0);
                 this.startNewHand();
-            }, 3000); // Reduce from 4000 to 3000 for speed
+            }, 3000); 
             
-        }, 500); // Small delay after showdown cards revealed
+        }, 500);
     }
 
     updateButtons() {
@@ -757,28 +868,25 @@ class Game {
          document.getElementById('btn-call').disabled = canCheck; 
          document.getElementById('btn-fold').disabled = false;
          
-         // Raise logic
          const callAmt = this.currentBet - player.currentBet;
          const canRaise = player.chips > callAmt;
          document.getElementById('btn-raise').disabled = !canRaise;
          
-         // Update slider range
          const slider = document.getElementById('raise-slider');
          const maxRaise = this.getMaxRaiseAmount();
          slider.disabled = !canRaise;
          document.getElementById('btn-quick-allin').disabled = !canRaise && player.chips > 0; 
          
          if (canRaise) {
-             slider.min = 20; // Min raise. Technically should be Big Blind or previous raise.
+             slider.min = this.blinds.bb * 2; // Min raise adjusted to blinds
              slider.max = maxRaise;
-             slider.value = 20;
-             document.getElementById('raise-amount-display').innerText = 20;
+             slider.value = slider.min;
+             document.getElementById('raise-amount-display').innerText = slider.value;
          } else {
              slider.value = 0;
              document.getElementById('raise-amount-display').innerText = 0;
          }
          
-         // Special case: if short stack, can't raise normally, but can All-in.
          if (player.chips > 0 && player.chips <= callAmt) {
               document.getElementById('btn-quick-allin').disabled = false;
          }
@@ -801,20 +909,14 @@ class Game {
 
     checkAchievements() {
         const profile = DataManager.load();
-        // Check using current stats and TOTAL chips (bankroll + table chips)
-        // Note: DataManager.updateChips was just called, so profile.chips is accurate total.
         const unlocked = AchievementManager.check(profile.stats, profile.chips);
         
         if (unlocked.length > 0) {
             unlocked.forEach(ach => {
                 this.ui.showAchievementToast(ach);
             });
-            
-            // Sync local bankroll because AchievementManager added rewards to persistent storage
             const newProfile = DataManager.load();
             const user = this.players[0];
-            // New Total = Old Total + Rewards
-            // We want to keep user.chips (table stack) same, but increase bankroll.
             this.bankroll = newProfile.chips - user.chips;
         }
     }

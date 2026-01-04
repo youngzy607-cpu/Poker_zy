@@ -294,6 +294,13 @@ class UI {
              return;
         }
 
+        // Trigger Sound
+        if (soundManager) soundManager.playWin();
+
+        // Trigger Particles if player won (or maybe for everyone for effect?)
+        // Let's do it for everyone for now, but maybe bigger for player
+        this.spawnConfetti(winnerEl);
+
         for(let i=0; i<5; i++) {
             setTimeout(() => {
                 this.animateChips(potEl, winnerEl, 0);
@@ -312,6 +319,49 @@ class UI {
              if(callback) callback();
         }, 2000);
     }
+
+    spawnConfetti(targetEl) {
+        const rect = targetEl.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const colors = ['#f1c40f', '#e67e22', '#2ecc71', '#3498db', '#9b59b6', '#e74c3c'];
+
+        for (let i = 0; i < 50; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            
+            // Random properties
+            const bg = colors[Math.floor(Math.random() * colors.length)];
+            const size = Math.random() * 8 + 4; // 4-12px
+            const tx = (Math.random() - 0.5) * 300; // spread X
+            const ty = (Math.random() - 1.0) * 300; // spread Y (upwards mostly)
+            const rot = Math.random() * 360;
+            
+            confetti.style.width = `${size}px`;
+            confetti.style.height = `${size}px`;
+            confetti.style.backgroundColor = bg;
+            confetti.style.left = `${centerX}px`;
+            confetti.style.top = `${centerY}px`;
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+            
+            document.body.appendChild(confetti);
+
+            // Animate
+            // We use Web Animations API for better performance than adding/removing classes with complex calc
+            const animation = confetti.animate([
+                { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
+                { transform: `translate(${tx}px, ${ty}px) rotate(${rot}deg)`, opacity: 0 }
+            ], {
+                duration: 1000 + Math.random() * 1000,
+                easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+                fill: 'forwards'
+            });
+
+            animation.onfinish = () => confetti.remove();
+        }
+    }
+
 
     showAchievementToast(achievement) {
         const container = document.getElementById('achievement-notification-container');
