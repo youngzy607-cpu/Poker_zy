@@ -1,4 +1,8 @@
 class UI {
+    constructor() {
+        this.AVATARS = ['👨‍💼', '👩‍💼', '🕵️‍♂️', '🤠', '👽', '🤖', '🐶', '🐯'];
+    }
+
     setupOpponents(opponents) {
         const container = document.getElementById('opponents-container');
         container.innerHTML = '';
@@ -35,11 +39,30 @@ class UI {
         // Let's manually define arcs based on count
         // Angles in degrees (0 = Right, 270 = Top, 180 = Left)
         let angles = [];
+        
+        // Dynamic angle calculation for 1 to 7 opponents (Total 8 players)
+        // User is at Bottom (90 deg / 270 deg in UI logic?)
+        // Let's stick to the logic: 270 is Top.
+        // We distribute opponents around the top arc.
+        
         if (count === 1) angles = [270];
-        else if (count === 2) angles = [220, 320];
-        else if (count === 3) angles = [200, 270, 340];
-        else if (count === 4) angles = [180, 240, 300, 360];
-        else if (count === 5) angles = [170, 220, 270, 320, 370];
+        else {
+            // Spread from 180 (Left) to 360 (Right) -> Top semi-circle
+            // Adjusted range to avoid pure left/right which might overlap UI
+            const startAngle = 160; 
+            const endAngle = 380;
+            const step = (endAngle - startAngle) / (count - 1);
+            
+            for(let i=0; i<count; i++) {
+                // If count is large, we spread them out.
+                // For 2: 270 +/- offset?
+                // General formula:
+                if (count === 2) angles = [220, 320]; // Custom for 2
+                else {
+                    angles.push(startAngle + (step * i));
+                }
+            }
+        }
         
         opponents.forEach((p, index) => {
             const angle = angles[index];
@@ -125,8 +148,15 @@ class UI {
             div.querySelector('.player-chips').innerText = p.chips;
             this.updateStatusBubble(div.querySelector('.player-status'), p);
             
+            // Update Opponent Avatar (in case it changed or wasn't set right)
+            const oppAvatarEl = div.querySelector('.opponent-avatar');
+            if (oppAvatarEl && p.avatar !== undefined) {
+                 oppAvatarEl.innerText = this.AVATARS[p.avatar] || '👤';
+            }
+
             div.classList.toggle('active', game.activePlayerIndex === i);
             div.classList.toggle('folded', p.folded);
+            div.classList.toggle('waiting', !!p.isWaiting);
             
             this.updateRoleBadges(div.querySelector('.avatar-container'), i, players.length);
         }
@@ -136,7 +166,16 @@ class UI {
         const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
         if (!el) return;
         
-        if (player.folded) {
+        if (player.isWaiting) {
+            el.innerText = "等待中";
+            el.style.display = 'block';
+            el.style.background = '#7f8c8d';
+        } else if (player.isSittingOut) {
+            el.innerText = "补充筹码中";
+            el.style.display = 'block';
+            el.style.background = '#e67e22'; // Orange for attention
+            el.style.animation = 'pulse 2s infinite';
+        } else if (player.folded) {
             el.innerText = "弃牌";
             el.style.display = 'block';
             el.style.background = '#e74c3c';
@@ -373,9 +412,15 @@ class UI {
                 <div class="ach-toast-title">解锁成就：${achievement.title}</div>
                 <div class="ach-toast-reward">奖励 +${achievement.reward} 筹码</div>
             </div>
+            <div class="ach-shine"></div>
         `;
         container.appendChild(toast);
         
+        // Play sound
+        if (window.soundManager) {
+            window.soundManager.playAchievement();
+        }
+
         // Remove after animation (4s total)
         setTimeout(() => {
             toast.remove();
@@ -506,5 +551,130 @@ class UI {
             row.appendChild(cardsDiv);
             list.appendChild(row);
         });
+    }
+
+    showRebuyModal(currentBankroll, onConfirmRebuy, onWatchAd, onCancel) {
+        const overlay = document.getElementById('rebuy-overlay');
+        const totalChipsEl = document.getElementById('rebuy-total-chips');
+        const sliderContent = document.getElementById('rebuy-content-slider');
+        const adContent = document.getElementById('rebuy-content-ad');
+        const slider = document.getElementById('rebuy-amount-slider');
+        const display = document.getElementById('rebuy-amount-display');
+        
+        totalChipsEl.innerText = currentBankroll;
+        overlay.style.display = 'flex';
+
+        // Clear previous event listeners (simple cloning)
+        const btnConfirm = document.getElementById('btn-confirm-rebuy');
+        const btnCancel = document.getElementById('btn-cancel-rebuy');
+        const btnWatchAd = document.getElementById('btn-watch-ad');
+        const btnGiveUp = document.getElementById('btn-give-up');
+
+        const newBtnConfirm = btnConfirm.cloneNode(true);
+        btnConfirm.parentNode.replaceChild(newBtnConfirm, btnConfirm);
+        
+        const newBtnCancel = btnCancel.cloneNode(true);
+        btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+        
+        const newBtnWatchAd = btnWatchAd.cloneNode(true);
+        btnWatchAd.parentNode.replaceChild(newBtnWatchAd, btnWatchAd);
+        
+        const newBtnGiveUp = btnGiveUp.cloneNode(true);
+        btnGiveUp.parentNode.replaceChild(newBtnGiveUp, btnGiveUp);
+
+        // Make overlay non-blocking visually if desired, but blocking interaction with buttons?
+        // Actually for non-blocking rebuy, we want user to interact with modal.
+        // We can make background transparent so they see game.
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.4)'; // More transparent
+
+        if (currentBankroll > 0) {
+            // Scenario A: Has Bankroll
+            sliderContent.style.display = 'block';
+            adContent.style.display = 'none';
+            
+            // Setup Slider
+            const maxBuyIn = Math.min(currentBankroll, 1000); // Limit buy-in to 1000 or max bankroll
+            slider.max = maxBuyIn;
+            slider.value = maxBuyIn;
+            display.innerText = maxBuyIn;
+            
+            slider.oninput = () => {
+                display.innerText = slider.value;
+            };
+
+            newBtnConfirm.onclick = () => {
+                overlay.style.display = 'none';
+                if(onConfirmRebuy) onConfirmRebuy(parseInt(slider.value));
+            };
+
+            newBtnCancel.onclick = () => {
+                overlay.style.display = 'none';
+                if(onCancel) onCancel();
+            };
+
+        } else {
+            // Scenario B: Bankruptcy
+            sliderContent.style.display = 'none';
+            adContent.style.display = 'block';
+
+            newBtnWatchAd.onclick = () => {
+                // overlay.style.display = 'none'; // Keep overlay or hide? 
+                // Better hide rebuy, show ad overlay
+                overlay.style.display = 'none';
+                if(onWatchAd) onWatchAd();
+            };
+
+            newBtnGiveUp.onclick = () => {
+                overlay.style.display = 'none';
+                if(onCancel) onCancel();
+            };
+        }
+        
+        // Add "Add Chips" button trigger if not present
+        if (!document.getElementById('btn-add-chips')) {
+            this.createAddChipsButton(onConfirmRebuy ? () => {
+                 // Trigger callback to game to open modal
+                 // But UI shouldn't know game logic.
+                 // We need a way to trigger open modal. 
+                 // We can pass a 'requestRebuy' callback.
+                 // For now, let's assume game handles button creation or binding.
+                 // Actually better to put button creation in setup or game.js
+            } : null);
+        }
+    }
+    
+    // New method to add the Plus button
+    createAddChipsButton(onClick) {
+        const container = document.getElementById('player-area');
+        if (!container) return;
+        
+        const btn = document.createElement('button');
+        btn.id = 'btn-add-chips';
+        btn.innerHTML = '+';
+        btn.className = 'btn-add-chips';
+        btn.title = "补充筹码";
+        container.appendChild(btn);
+        
+        // Event listener will be attached by game.js via ID
+    }
+
+    showAdCountdown(seconds, onComplete) {
+        const overlay = document.getElementById('ad-overlay');
+        const countdownEl = document.getElementById('ad-countdown');
+        
+        overlay.style.display = 'flex';
+        let remaining = seconds;
+        countdownEl.innerText = remaining;
+        
+        const interval = setInterval(() => {
+            remaining--;
+            countdownEl.innerText = remaining;
+            
+            if (remaining <= 0) {
+                clearInterval(interval);
+                overlay.style.display = 'none';
+                if(onComplete) onComplete();
+            }
+        }, 1000);
     }
 }

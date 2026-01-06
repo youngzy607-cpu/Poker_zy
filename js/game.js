@@ -251,6 +251,7 @@ class Game {
                 const user = this.players[0];
                 const currentTotal = this.bankroll + user.chips;
                 DataManager.updateChips(currentTotal);
+                if(networkManager) networkManager.updateBalance(currentTotal);
             }
         } else {
             // Tournament: No refund if quit manually.
@@ -303,6 +304,7 @@ class Game {
             this.bankroll = profile.chips - buyInAmount;
             // Immediate save to prevent duplication if crash
             DataManager.updateChips(this.bankroll); 
+            if(networkManager) networkManager.updateBalance(this.bankroll);
             
             this.blinds = { sb: 5, bb: 10 }; // Reset blinds
             this.handCount = 0;
@@ -324,6 +326,7 @@ class Game {
             // Deduct buy-in permanently
             this.bankroll = profile.chips - buyInAmount;
             DataManager.updateChips(this.bankroll);
+            if(networkManager) networkManager.updateBalance(this.bankroll);
             
             this.blinds = { sb: 10, bb: 20 }; // Start slightly higher? Or 5/10. Let's do 10/20.
             this.handCount = 0;
@@ -342,6 +345,20 @@ class Game {
         }
 
         this.ui.setupOpponents(this.players.slice(1)); 
+        
+        // Add Rebuy Button for Cash Game
+        if (this.mode === 'cash') {
+            this.ui.createAddChipsButton();
+            const btn = document.getElementById('btn-add-chips');
+            if(btn) {
+                btn.onclick = () => {
+                    // Only allow rebuy if not already pending or max chips?
+                    // Actually allow anytime.
+                    this.triggerNonBlockingRebuy();
+                };
+            }
+        }
+        
         this.startNewHand();
     }
 
@@ -373,16 +390,58 @@ class Game {
                  this.ui.setupOpponents(this.players.filter(p => p.isComputer));
             }
         } else {
-            // Cash Game: Just mark inactive
+            // Cash Game Logic
+            const user = this.players[0];
+            
+            // 1. Check User Bankruptcy (Non-blocking)
+            if (user.chips <= 0) {
+                user.isSittingOut = true;
+                user.isActive = false;
+                // If modal not already shown, trigger it
+                if (document.getElementById('rebuy-overlay').style.display !== 'flex') {
+                    this.triggerNonBlockingRebuy();
+                }
+            } else {
+                // If user has chips, ensure they are back in
+                if (user.isSittingOut) {
+                    user.isSittingOut = false;
+                    user.isActive = true;
+                }
+            }
+
+            // 2. Check Opponents Bankruptcy
             this.players.forEach(p => {
-                if (p.chips <= 0) p.isActive = false;
+                if (p.isComputer) {
+                    if (p.chips <= 0) {
+                        // Simple CPU Rebuy Logic: Always rebuy if broke
+                        p.chips = 1000;
+                        p.isActive = true;
+                        this.ui.showMessage(`${p.name} 补充了筹码`);
+                    } else {
+                        p.isActive = true;
+                    }
+                }
             });
-            const activePlayers = this.players.filter(p => p.isActive);
+
+            // 3. Check if enough players to start
+            const activePlayers = this.players.filter(p => !p.isSittingOut && p.isActive);
             if (activePlayers.length < 2) {
-                this.ui.showMessage(activePlayers[0] === this.players[0] ? "恭喜！你赢得了所有筹码！" : "游戏结束，你输光了。");
-                document.getElementById('btn-restart').style.display = 'inline-block';
-                this.disableControls();
-                return;
+                // Everyone is broke or sitting out?
+                // If user is sitting out, we should wait?
+                // Or if user is the ONLY one sitting out, and CPUs are ready, we can't start a hand with 1 CPU?
+                // Actually if CPUs are there, they can play against each other? 
+                // Wait, if user is sitting out, we can let CPUs play.
+                
+                // If ONLY 1 player total (e.g. 1 CPU left and User sitting out), we can't start.
+                // But we have logic to refill CPUs. So usually CPUs > 0.
+                // If User + 1 CPU. User sits out. CPU is alone.
+                // We need at least 2 active players to deal cards.
+                
+                if (activePlayers.length < 2) {
+                    this.ui.showMessage("等待玩家加入...");
+                    this.setTimeout(() => this.startNewHand(), 1000); // Polling wait
+                    return;
+                }
             }
         }
 
@@ -433,7 +492,10 @@ class Game {
         soundManager.playCard();
         for(let i=0; i<2; i++) {
             this.players.forEach(p => {
-                if(this.mode === 'tournament' || p.isActive) p.receiveCard(this.deck.deal());
+                // Only deal to active players who are NOT sitting out
+                if((this.mode === 'tournament' || (p.isActive && !p.isSittingOut))) {
+                    p.receiveCard(this.deck.deal());
+                }
             });
         }
 
@@ -503,6 +565,7 @@ class Game {
         if (reward > 0) {
             const profile = DataManager.load();
             DataManager.updateChips(profile.chips + reward);
+            if(networkManager) networkManager.updateBalance(profile.chips + reward);
             
             // Record History
             DataManager.recordHand({
@@ -544,6 +607,9 @@ class Game {
         const playerIndex = this.activePlayerIndex;
         const player = this.players[playerIndex];
         
+        // Safety check
+        if (!player) return;
+
         if (player === this.players[0]) this.disableControls();
 
         let message = "";
@@ -620,7 +686,7 @@ class Game {
     }
 
     nextTurn() {
-        const survivors = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded);
+        const survivors = this.players.filter(p => (this.mode==='tournament' || (p.isActive && !p.isSittingOut)) && !p.folded);
         if (survivors.length === 1) {
             this.endHand(survivors[0]);
             return;
@@ -635,7 +701,7 @@ class Game {
         const player = this.players[this.activePlayerIndex];
 
         // Validate
-        if ((this.mode !== 'tournament' && !player.isActive) || player.folded) {
+        if ((this.mode !== 'tournament' && (!player.isActive || player.isSittingOut)) || player.folded) {
             this.nextTurn(); 
             return;
         }
@@ -665,7 +731,7 @@ class Game {
         if (!cpu) return;
         
         const diff = this.currentBet - cpu.currentBet;
-        const activePlayersCount = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded).length;
+        const activePlayersCount = this.players.filter(p => (this.mode==='tournament' || (p.isActive && !p.isSittingOut)) && !p.folded).length;
 
         let winRate = 0;
         try {
@@ -774,13 +840,20 @@ class Game {
         if (this.mode === 'cash') {
             const user = this.players[0];
             DataManager.updateChips(this.bankroll + user.chips);
+            if(networkManager) networkManager.updateBalance(this.bankroll + user.chips);
         }
         
         this.pot = 0;
         this.ui.updatePlayers(this.players);
         this.ui.updatePot(0);
         
-        this.setTimeout(() => this.startNewHand(), 3000);
+        this.setTimeout(() => {
+            if (this.mode === 'cash' && this.players[0].chips <= 0) {
+                 this.startNewHand();
+            } else {
+                this.startNewHand();
+            }
+        }, 3000);
     }
     
     restartGame() {
@@ -790,7 +863,7 @@ class Game {
     determineWinner() {
         this.ui.updatePlayers(this.players, true); 
         
-        const activeSurvivors = this.players.filter(p => (this.mode==='tournament' || p.isActive) && !p.folded);
+        const activeSurvivors = this.players.filter(p => (this.mode==='tournament' || (p.isActive && !p.isSittingOut)) && !p.folded);
         const scores = activeSurvivors.map(p => {
             return {
                 player: p,
@@ -844,21 +917,96 @@ class Game {
             this.setTimeout(() => {
                 if (this.mode === 'cash') {
                     const actualProfit = user.chips - this.userStartChips;
+                    
+                    // 1. Update Chips first
                     DataManager.updateChips(this.bankroll + user.chips);
+                    if(networkManager) networkManager.updateBalance(this.bankroll + user.chips);
+                    
+                    // 2. Record Hand Stats (Wins, Hands Played, etc.)
                     DataManager.recordHand({
                         profit: actualProfit,
                         hand: userScore ? userScore.score : null,
                         pot: this.pot,
                         cards: user.hand.map(c => c.toString())
                     });
+
+                    // 3. CHECK ACHIEVEMENTS NOW (After stats are updated)
+                    this.checkAchievements();
                 }
                 
                 this.pot = 0;
                 this.ui.updatePot(0);
-                this.startNewHand();
+                
+                if (this.mode === 'cash' && this.players[0].chips <= 0) {
+                    // Logic moved to startNewHand check, so just startNewHand
+                    // If player is broke, startNewHand will mark sittingOut and trigger modal
+                    this.startNewHand();
+                } else {
+                    this.startNewHand();
+                }
             }, 3000); 
             
         }, 500);
+    }
+
+    handleAdWatch() {
+        this.ui.showAdCountdown(5, () => {
+            // Reward 1000 chips
+            const reward = 1000;
+            const profile = DataManager.load();
+            DataManager.updateChips(profile.chips + reward);
+            this.bankroll = profile.chips + reward; 
+            
+            this.ui.showMessage("观看广告奖励：1000 筹码到账！");
+            
+            // Re-open rebuy modal to let user select amount to bring in
+            this.triggerNonBlockingRebuy();
+        });
+    }
+
+    handleRebuy(amount) {
+        const user = this.players[0];
+        if (this.bankroll >= amount) {
+            this.bankroll -= amount;
+            user.chips += amount; // Added to stack
+            
+            // Mark as no longer sitting out (will play next hand)
+            user.isSittingOut = false;
+            user.isActive = true;
+            
+            // Save immediately
+            DataManager.updateChips(this.bankroll + user.chips);
+            
+            this.ui.showMessage(`成功带入 ${amount} 筹码，下局生效`);
+            this.ui.updatePlayers(this.players);
+            
+            // NOTE: We DO NOT call startNewHand() here. 
+            // The game loop (setTimeout in endHand or mid-game) continues.
+            // User just waits for next hand.
+        } else {
+            alert("资金不足！");
+            this.triggerNonBlockingRebuy();
+        }
+    }
+
+    triggerNonBlockingRebuy() {
+        const profile = DataManager.load();
+        this.bankroll = profile.chips; 
+
+        // Non-blocking UI call
+        this.ui.showRebuyModal(
+            this.bankroll,
+            (amount) => this.handleRebuy(amount),
+            () => this.handleAdWatch(),
+            () => {
+                // If user cancels rebuy, they stay sitting out
+                // We might want to add a button to reopen rebuy? 
+                // Or just keep the overlay but maybe minimized?
+                // For now, if cancel, just hide modal. 
+                // User is SittingOut, so game proceeds. 
+                // We need a way to open Rebuy again. -> "Plus Button"
+            }
+        );
     }
 
     updateButtons() {
@@ -917,7 +1065,19 @@ class Game {
             });
             const newProfile = DataManager.load();
             const user = this.players[0];
-            this.bankroll = newProfile.chips - user.chips;
+            
+            // If achievement gives reward, update server AND local UI immediately
+            if(networkManager) networkManager.updateBalance(newProfile.chips);
+            
+            // Update local bankroll variable (profit calculation)
+            this.bankroll = newProfile.chips - user.chips; 
+
+            // FORCE UI UPDATE: Update player's chip display immediately to show reward
+            user.chips = newProfile.chips; // Sync object
+            this.ui.updatePlayerInfo(user, 0); // Update visual (0 is player index)
+            
+            // Also update the "Total Assets" in menu if possible, but we are in game
+            // The stat overlay will read from DataManager so it's fine.
         }
     }
 }

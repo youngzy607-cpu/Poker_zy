@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>德州扑克 HTML 版</title>
+    <title>德州扑克 v3.3.1</title>
     
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
@@ -12,11 +12,53 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.svg">
     
-    <link rel="stylesheet" href="style.css">href="style.css?v=2.2.0">
+    <link rel="stylesheet" href="style.css?v=3.3.1">
 </head>
 <body>
+    <!-- Auth Overlay -->
+    <div id="auth-overlay" class="lobby-overlay">
+        <div class="lobby-box auth-box">
+            <h1>德州扑克</h1>
+            
+            <!-- Login Form -->
+            <div id="auth-form-login">
+                <div class="lobby-form">
+                    <input type="text" id="login-username" class="lobby-input" placeholder="用户名">
+                    <input type="password" id="login-password" class="lobby-input" placeholder="密码">
+                    <button id="btn-login-submit" class="btn-primary">登录</button>
+                </div>
+                <div class="auth-switch">
+                    还没有账号？ <span id="link-to-register">立即注册</span>
+                </div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="auth-form-register" style="display: none;">
+                <div class="lobby-form">
+                    <input type="text" id="reg-username" class="lobby-input" placeholder="设置用户名">
+                    <input type="password" id="reg-password" class="lobby-input" placeholder="设置密码 (4位以上)">
+                    
+                    <div class="avatar-selection">
+                        <p>选择头像</p>
+                        <div class="avatar-grid" id="reg-avatar-grid">
+                            <!-- JS injected avatars -->
+                        </div>
+                        <input type="hidden" id="reg-avatar-id" value="0">
+                    </div>
+
+                    <button id="btn-register-submit" class="btn-primary">注册并登录</button>
+                </div>
+                <div class="auth-switch">
+                    已有账号？ <span id="link-to-login">直接登录</span>
+                </div>
+            </div>
+
+            <div id="auth-message" style="color: #e74c3c; margin-top: 15px; min-height: 20px;"></div>
+        </div>
+    </div>
+
     <!-- Main Menu -->
-    <div id="main-menu" class="main-menu">
+    <div id="main-menu" class="main-menu" style="display: none;">
         <div class="menu-box">
             <h1>德州扑克</h1>
             <div class="menu-chips">当前持有: <span id="menu-chip-count" class="gold">...</span></div>
@@ -48,6 +90,12 @@
     <div id="stats-overlay" class="lobby-overlay" style="display: none;">
         <div class="lobby-box stats-box">
             <h1>个人战绩</h1>
+            
+            <!-- DEBUG TRIGGER BUTTON (TEMPORARY) -->
+            <button onclick="window.game.ui.showAchievementToast({title:'测试成就', reward:999})" style="background:red; color:white; border:none; padding:5px; margin-bottom:10px; cursor:pointer;">
+                [调试] 强制触发成就弹窗
+            </button>
+            
             <div class="stats-grid">
                 <div class="stat-item">
                     <div class="stat-label">当前筹码</div>
@@ -116,6 +164,23 @@
                 </div>
             </div>
             <div class="level-up-desc">盲注级别已提升，节奏加快！</div>
+        </div>
+    </div>
+
+    <!-- Waiting Host Overlay -->
+    <div id="waiting-host-overlay" class="game-overlay-message" style="display: none;">
+        <div class="message-content">
+            <h2>等待房主开始...</h2>
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <!-- Waiting Next Hand Overlay -->
+    <div id="waiting-next-hand-overlay" class="game-overlay-message" style="display: none;">
+        <div class="message-content">
+            <h2>正在进行中</h2>
+            <p>请等待本局结束...</p>
+            <div class="spinner"></div>
         </div>
     </div>
 
@@ -216,12 +281,95 @@
 
     </div>
 
+    <div id="online-lobby-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box" style="min-width: 400px;">
+            <h1>联机大厅</h1>
+            <div class="lobby-form">
+                <!-- Nickname input removed, using logged in user -->
+                
+                <div class="lobby-actions" style="flex-direction: column; gap: 15px;">
+                    <div class="create-room-section" style="display: flex; gap: 10px;">
+                        <input type="password" id="create-room-pwd" class="lobby-input" placeholder="设置密码(可选)" style="flex: 1;" maxlength="6">
+                        <button id="btn-create-room" class="btn-primary" style="flex: 1.5;">创建新房间</button>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; width: 100%; margin: 5px 0;">
+                        <div style="flex: 1; height: 1px; background: #333;"></div>
+                        <span style="padding: 0 10px; color: #666; font-size: 0.9em; display: flex; align-items: center; gap: 5px;">
+                            房间列表
+                            <button id="btn-refresh-rooms" class="icon-btn-small" title="刷新列表">↻</button>
+                        </span>
+                        <div style="flex: 1; height: 1px; background: #333;"></div>
+                    </div>
+
+                    <div id="room-list-container" class="room-list-container">
+                        <!-- JS injected rooms -->
+                        <div class="room-list-empty">暂无房间，快来创建一个吧！</div>
+                    </div>
+
+                    <div class="join-room-section">
+                        <input type="text" id="join-room-id" class="lobby-input" placeholder="输入房间号" maxlength="6" style="text-transform: uppercase;">
+                        <button id="btn-join-room" class="btn-secondary" style="white-space: nowrap;">加入</button>
+                    </div>
+                </div>
+                
+                <div id="lobby-message" style="color: #e74c3c; margin-top: 5px; min-height: 20px; font-size: 0.9em;"></div>
+                <button id="btn-lobby-back" class="btn-text">返回主菜单</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Notification Overlay (Fixed to Body) -->
+    <div id="achievement-notification-container" class="achievement-notification-container"></div>
+
+    <!-- Rebuy / Bankruptcy Modal -->
+    <div id="rebuy-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box rebuy-box">
+            <h1 id="rebuy-title">筹码不足</h1>
+            <div class="lobby-info">当前资产: <span id="rebuy-total-chips" class="gold">0</span></div>
+            
+            <!-- State A: Has Bankroll (Slider) -->
+            <div id="rebuy-content-slider" style="display: none;">
+                <p>请选择带入金额</p>
+                <div class="opponent-selector">
+                    <input type="range" id="rebuy-amount-slider" min="100" max="1000" step="100" value="1000">
+                    <span id="rebuy-amount-display">1000</span>
+                </div>
+                <div class="lobby-actions">
+                    <button id="btn-confirm-rebuy" class="btn-primary">带入</button>
+                    <button id="btn-cancel-rebuy" class="btn-secondary">离开牌桌</button>
+                </div>
+            </div>
+
+            <!-- State B: Bankruptcy (Ad) -->
+            <div id="rebuy-content-ad" style="display: none;">
+                <p class="warning-text">您的资产已耗尽！</p>
+                <p>观看广告即可获得 <span class="gold">1000</span> 筹码救济金。</p>
+                <div class="lobby-actions">
+                    <button id="btn-watch-ad" class="btn-primary">观看广告 (5秒)</button>
+                    <button id="btn-give-up" class="btn-secondary">退出游戏</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fake Ad Overlay -->
+    <div id="ad-overlay" class="ad-overlay" style="display: none;">
+        <div class="ad-content">
+            <div class="ad-spinner"></div>
+            <h2>广告播放中...</h2>
+            <p>剩余时间: <span id="ad-countdown">5</span> 秒</p>
+            <div class="ad-placeholder">
+                [ 这是一个假广告 ]<br>
+                只有输光的人才能看到我
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏主界面 -->
     <div class="game-container" style="display: none;">
         <!-- 版本号 (左上角) -->
-        <div class="version-tag">v2.6.0</div>
-
-        <!-- 成就通知容器 -->
-        <div id="achievement-notification-container" class="achievement-notification-container"></div>
+        <div class="version-tag">v3.3.1</div>
 
         <!-- 返回主菜单 (右上角，音效左侧) -->
         <button id="btn-back-menu" class="icon-btn" title="返回主菜单">🏠</button>
@@ -239,6 +387,12 @@
 
         <!-- 游戏元素层 (绝对定位) -->
         <div class="game-layer">
+            <!-- Host Start Button (Centered) -->
+            <div id="host-start-container" class="host-start-container" style="display: none;">
+                 <button id="btn-host-start" class="btn-primary-large">开始游戏</button>
+                 <p class="host-hint">等待玩家加入...</p>
+            </div>
+
             <!-- 公共区域 -->
             <div class="center-area">
                 <div class="pot-container">
@@ -309,15 +463,18 @@
         </div>
     </div>
 
-    <script src="js/card.js?v=2.2.0"></script>
-    <script src="js/audio.js?v=2.2.0"></script>
-    <script src="js/evaluator.js?v=2.2.0"></script>
-    <script src="js/player.js?v=2.2.0"></script>
-    <script src="js/data.js?v=2.2.0"></script>
-    <script src="js/achievements.js?v=2.2.0"></script>
-    <script src="js/ui.js?v=2.2.0"></script>
-    <script src="js/game.js?v=2.2.0"></script>
-    <script src="js/main.js?v=2.2.0"></script>
+    <script src="js/card.js?v=3.3.1"></script>
+    <script src="js/audio.js?v=3.3.1"></script>
+    <script src="js/evaluator.js?v=3.3.1"></script>
+    <script src="js/player.js?v=3.3.1"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/data.js?v=3.3.1"></script>
+    <script src="js/achievements.js?v=3.3.1"></script>
+    <script src="js/network.js?v=3.3.1"></script>
+    <script src="js/ui.js?v=3.3.1"></script>
+    <script src="js/game_online.js?v=3.3.1"></script>
+    <script src="js/game.js?v=3.3.1"></script>
+    <script src="js/main.js?v=3.3.1"></script>
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {

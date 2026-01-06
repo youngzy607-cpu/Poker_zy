@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>德州扑克 HTML 版</title>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+    
+    <link rel="stylesheet" href="style.css">href="style.css?v=2.2.0">
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="main-menu" class="main-menu">
+        <div class="menu-box">
+            <h1>德州扑克</h1>
+            <div class="menu-chips">当前持有: <span id="menu-chip-count" class="gold">...</span></div>
+            <div class="menu-buttons">
+                <button id="btn-menu-single" class="btn-menu">单机模式</button>
+                <button id="btn-menu-multi" class="btn-menu">联机对战</button>
+                <button id="btn-menu-stats" class="btn-menu">个人战绩</button>
+                <button id="btn-menu-achievements" class="btn-menu">🏆 成就系统</button>
+                <button id="btn-menu-rankings" class="btn-menu">🃏 牌型说明</button>
+                <button id="btn-menu-exit" class="btn-menu">退出游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievement Overlay -->
+    <div id="achievements-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box achievements-box">
+            <h1>成就系统</h1>
+            <div class="achievements-list" id="achievements-list">
+                <!-- JS injected items -->
+            </div>
+            <div class="lobby-actions">
+                <button id="btn-achievements-close" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overlay -->
+    <div id="stats-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box stats-box">
+            <h1>个人战绩</h1>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">当前筹码</div>
+                    <div class="stat-value gold" id="stat-chips">1000</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">总局数</div>
+                    <div class="stat-value" id="stat-hands">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">胜局数</div>
+                    <div class="stat-value" id="stat-wins">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">总盈利</div>
+                    <div class="stat-value" id="stat-profit">0</div>
+                </div>
+                <div class="stat-item wide">
+                    <div class="stat-label">最佳牌型</div>
+                    <div class="stat-value highlight" id="stat-best-hand">无</div>
+                </div>
+                <div class="stat-item wide">
+                    <div class="stat-label">单局最大底池</div>
+                    <div class="stat-value gold" id="stat-biggest-pot">0</div>
+                </div>
+            </div>
+            
+            <div class="history-list">
+                <h3>最近战绩</h3>
+                <div id="history-container">
+                    <!-- JS injected history items -->
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-stats-close" class="btn-secondary">关闭</button>
+                <button id="btn-stats-reset" class="btn-secondary danger" style="display: none;">重置数据</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rankings Overlay -->
+    <div id="rankings-overlay" class="lobby-overlay" style="display: none;">
+        <div class="lobby-box rankings-box">
+            <h1>德州扑克牌型大小顺序</h1>
+            <div class="rankings-list" id="rankings-list">
+                <!-- JS injected items -->
+            </div>
+            <div class="lobby-actions">
+                <button id="btn-rankings-close" class="btn-secondary">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level Up Overlay -->
+    <div id="level-up-overlay" class="level-up-overlay" style="display: none;">
+        <div class="level-up-box">
+            <div class="level-up-title">BLIND LEVEL UP</div>
+            <div class="level-up-info">
+                <div class="old-blind">
+                    <span>10/20</span>
+                </div>
+                <div class="level-arrow">➜</div>
+                <div class="new-blind">
+                    <span id="level-up-new-blind">20/40</span>
+                </div>
+            </div>
+            <div class="level-up-desc">盲注级别已提升，节奏加快！</div>
+        </div>
+    </div>
+
+    <!-- Lobby / Start Screen (Mode Selection & Setup) -->
+    <div id="lobby-overlay" class="lobby-overlay" style="display: none;">
+        
+        <!-- State 1: Mode Selection -->
+        <div id="lobby-mode-select" class="lobby-box mode-select-box">
+            <h1>选择游戏模式</h1>
+            <div class="lobby-info">总资产: <span id="mode-total-chips" class="gold">0</span></div>
+            
+            <div class="modes-container">
+                <div class="mode-card" id="btn-mode-cash">
+                    <div class="mode-icon">💰</div>
+                    <h3>现金桌</h3>
+                    <p>Cash Game</p>
+                    <ul class="mode-features">
+                        <li>自由买入</li>
+                        <li>盲注固定 (5/10)</li>
+                        <li>随时离桌</li>
+                    </ul>
+                </div>
+
+                <div class="mode-card" id="btn-mode-tourney">
+                    <div class="mode-icon">🏆</div>
+                    <h3>锦标赛</h3>
+                    <p>Tournament</p>
+                    <ul class="mode-features">
+                        <li>报名费 $500</li>
+                        <li>前两名瓜分奖池</li>
+                        <li>盲注随局数上涨</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-mode-back" class="btn-secondary">返回主菜单</button>
+            </div>
+        </div>
+
+        <!-- State 2A: Cash Game Setup -->
+        <div id="lobby-setup-cash" class="lobby-box" style="display: none;">
+            <h1>现金桌设置</h1>
+            <div class="lobby-info">可用资金: <span id="cash-total-chips" class="gold">0</span></div>
+            
+            <p>选择电脑对手数量 (1-5)</p>
+            <div class="opponent-selector">
+                <input type="range" id="opponent-count" min="1" max="5" value="5" oninput="document.getElementById('count-display').innerText = this.value">
+                <span id="count-display">5</span>
+            </div>
+            
+            <p>带入筹码量</p>
+            <div class="opponent-selector">
+                <input type="range" id="buyin-amount" min="100" max="1000" step="100" value="1000">
+                <span id="buyin-display">1000</span>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-start-cash">开始游戏</button>
+                <button id="btn-back-mode-select" class="btn-secondary">返回</button>
+            </div>
+        </div>
+
+        <!-- State 2B: Tournament Setup -->
+        <div id="lobby-setup-tourney" class="lobby-box" style="display: none;">
+            <h1>锦标赛大厅</h1>
+            <div class="lobby-info">可用资金: <span id="tourney-total-chips" class="gold">0</span></div>
+            
+            <div class="tourney-info-card">
+                <div class="info-row">
+                    <span>报名费</span>
+                    <span class="gold">$500</span>
+                </div>
+                <div class="info-row">
+                    <span>初始记分牌</span>
+                    <span class="white">1500</span>
+                </div>
+                <div class="info-row">
+                    <span>参赛人数</span>
+                    <span class="white">5人 (1玩家 + 4电脑)</span>
+                </div>
+                <div class="info-row">
+                    <span>盲注结构</span>
+                    <span class="white">每 5 局翻倍</span>
+                </div>
+                <div class="prize-structure">
+                    <h4>奖金分配 (净赚)</h4>
+                    <div class="prize-row gold">🥇 冠军: +$1000</div>
+                    <div class="prize-row silver">🥈 亚军: +$500</div>
+                </div>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="btn-start-tourney">报名并开始</button>
+                <button id="btn-back-mode-select-2" class="btn-secondary">返回</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="game-container" style="display: none;">
+        <!-- 版本号 (左上角) -->
+        <div class="version-tag">v2.6.0</div>
+
+        <!-- 成就通知容器 -->
+        <div id="achievement-notification-container" class="achievement-notification-container"></div>
+
+        <!-- 返回主菜单 (右上角，音效左侧) -->
+        <button id="btn-back-menu" class="icon-btn" title="返回主菜单">🏠</button>
+        <button id="btn-game-rankings" class="icon-btn" title="牌型说明">ℹ️</button>
+
+        <!-- 音效开关 (右上角) -->
+        <button id="mute-btn" class="mute-btn" title="开关音效">🔊</button>
+
+        <!-- 桌子背景层 -->
+        <div class="table-background">
+            <div class="table-felt">
+                <div class="table-logo">POKER</div>
+            </div>
+        </div>
+
+        <!-- 游戏元素层 (绝对定位) -->
+        <div class="game-layer">
+            <!-- 公共区域 -->
+            <div class="center-area">
+                <div class="pot-container">
+                    <div class="pot-label">底池</div>
+                    <div class="pot-amount" id="pot-amount">0</div>
+                </div>
+                <div class="community-cards" id="community-cards">
+                    <!-- 公共牌 -->
+                </div>
+                <div id="message-area" class="message-area"></div>
+            </div>
+
+            <!-- 对手容器 (JS 动态注入) -->
+            <div id="opponents-container"></div>
+
+            <!-- 玩家区域 (固定底部) -->
+            <div class="player-seat" id="player-area">
+                <!-- 玩家手牌 (绝对定位在头像上方) -->
+                <div class="cards" id="player-cards"></div>
+                
+                <!-- 玩家头像信息 -->
+                <div class="avatar-container">
+                    <div class="avatar">
+                        <div class="avatar-img user-avatar">我</div>
+                    </div>
+                    <div class="player-info">
+                        <div class="name">玩家 (你)</div>
+                        <div class="chips-pill">
+                            <span class="currency">$</span>
+                            <span id="player-chips">1000</span>
+                        </div>
+                    </div>
+                    <!-- 状态气泡 -->
+                    <div class="status-bubble" id="player-status"></div>
+                </div>
+                
+                <!-- 牌力提示 -->
+                <div id="player-hand-hint" class="hand-hint"></div>
+            </div>
+        </div>
+
+        <!-- 底部操作栏 -->
+        <div class="controls-bar">
+            <!-- Main Actions -->
+            <div class="action-buttons" id="main-actions">
+                <button id="btn-fold" class="btn-action btn-fold" disabled>弃牌</button>
+                <button id="btn-check" class="btn-action btn-check" disabled>过牌</button>
+                <button id="btn-call" class="btn-action btn-call" disabled>跟注</button>
+                <button id="btn-raise" class="btn-action btn-raise" disabled>加注</button>
+                <button id="btn-quick-allin" class="btn-action btn-allin" disabled>ALL IN</button>
+            </div>
+            
+            <!-- Raise Inputs (Replaces Main Actions when Raise is clicked) -->
+            <div class="raise-inputs" id="raise-inputs" style="display:none;">
+                 <div class="slider-row">
+                     <button class="btn-adjust minus">-</button>
+                     <input type="range" id="raise-slider" min="0" max="100" value="0">
+                     <button class="btn-adjust plus">+</button>
+                     <span id="raise-amount-display">20</span>
+                 </div>
+                 <div class="raise-actions-row">
+                     <button id="btn-confirm-raise" class="btn-confirm">确定</button>
+                     <button id="btn-cancel-raise" class="btn-cancel">取消</button>
+                 </div>
+            </div>
+            
+            <button id="btn-restart" class="btn-restart" style="display:none;">再来一局</button>
+        </div>
+    </div>
+
+    <script src="js/card.js?v=2.2.0"></script>
+    <script src="js/audio.js?v=2.2.0"></script>
+    <script src="js/evaluator.js?v=2.2.0"></script>
+    <script src="js/player.js?v=2.2.0"></script>
+    <script src="js/data.js?v=2.2.0"></script>
+    <script src="js/achievements.js?v=2.2.0"></script>
+    <script src="js/ui.js?v=2.2.0"></script>
+    <script src="js/game.js?v=2.2.0"></script>
+    <script src="js/main.js?v=2.2.0"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

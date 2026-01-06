@@ -182,6 +182,30 @@ class SoundManager {
         this.playTone(200, 'sine', 1.0, 0, 0.2);
         this.vibrate(500);
     }
+
+    playAchievement() {
+        // "Treasure" sound: High-pitched magical chime
+        const now = this.context.currentTime;
+        const notes = [
+            1046.50, // C6
+            1318.51, // E6
+            1567.98, // G6
+            2093.00  // C7
+        ];
+        
+        // Rapid arpeggio up
+        notes.forEach((freq, i) => {
+            this.playTone(freq, 'sine', 0.5, i * 0.06, 0.15);
+            this.playTone(freq * 1.01, 'triangle', 0.3, i * 0.06, 0.05); // Detuned sparkle
+        });
+        
+        // Final ring
+        setTimeout(() => {
+             this.playTone(2093.00, 'sine', 1.5, 0, 0.2); 
+        }, 300);
+
+        this.vibrate([50, 50, 50, 50, 100, 50, 100]);
+    }
 }
 
 // const soundManager = new SoundManager();

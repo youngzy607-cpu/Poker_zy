@@ -1,0 +1,22 @@
+{
+  "name": "德州扑克单机版",
+  "short_name": "Poker Solo",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "description": "沉浸式单机德州扑克体验，支持锦标赛与现金桌双模式。",
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
