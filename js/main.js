@@ -20,55 +20,16 @@ document.addEventListener('keydown', unlockAudio);
 
 // Initialize Main Menu
 window.addEventListener('load', () => {
-    // Server Config Logic
-    const serverConfigOverlay = document.getElementById('server-config-overlay');
+    // Connect immediately
+    networkManager.connect();
+
+    // Show Auth Overlay by default
     const authOverlay = document.getElementById('auth-overlay');
     const mainMenu = document.getElementById('main-menu');
-    const serverUrlInput = document.getElementById('server-url');
-    const serverMessage = document.getElementById('server-message');
-    
-    // Load saved server URL if exists
-    const savedServerUrl = localStorage.getItem('serverUrl');
-    if (savedServerUrl) {
-        serverUrlInput.value = savedServerUrl;
-    }
     
     // Auth Logic
     initAuthUI();
-    
-    // Connect to server button
-    document.getElementById('btn-connect-server').addEventListener('click', () => {
-        const serverUrl = serverUrlInput.value.trim();
-        if (!serverUrl) {
-            serverMessage.textContent = '请输入服务器地址';
-            return;
-        }
-        
-        serverMessage.textContent = '正在连接...';
-        
-        // Connect to server
-        networkManager.connect(serverUrl);
-        
-        // Save server URL
-        localStorage.setItem('serverUrl', serverUrl);
-        
-        // Check connection status
-        setTimeout(() => {
-            if (networkManager.isConnected) {
-                serverConfigOverlay.style.display = 'none';
-                authOverlay.style.display = 'flex';
-            } else {
-                serverMessage.textContent = '连接失败，请检查服务器地址';
-            }
-        }, 1500);
-    });
-    
-    // Local play only button
-    document.getElementById('btn-local-play').addEventListener('click', () => {
-        serverConfigOverlay.style.display = 'none';
-        authOverlay.style.display = 'flex';
-    });
-    
+
     // --- Main Menu Buttons ---
 
     // Online Mode Button (Now just opens Lobby)

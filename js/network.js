@@ -5,16 +5,10 @@ class NetworkManager {
         this.listeners = {}; // Changed from callbacks to listeners array
     }
 
-    connect(serverUrl = '') {
-        if (this.socket) {
-            this.socket.disconnect();
-            this.socket = null;
-        }
+    connect() {
+        if (this.socket) return;
         
-        this.socket = io(serverUrl, {
-            path: '/socket.io',
-            transports: ['websocket', 'polling']
-        });
+        this.socket = io();
 
         // Generic event handler
         const handleEvent = (event, data) => {
@@ -36,14 +30,8 @@ class NetworkManager {
         });
 
         this.socket.on('error', (msg) => {
-            console.error('Socket.io error:', msg);
-            // Don't show alert to user, just log
+            alert('Error: ' + msg);
             handleEvent('error', msg);
-        });
-
-        this.socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
-            handleEvent('error', '无法连接到服务器，请检查地址是否正确');
         });
 
         const events = [
