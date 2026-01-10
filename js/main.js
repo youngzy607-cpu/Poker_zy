@@ -20,15 +20,36 @@ document.addEventListener('keydown', unlockAudio);
 
 // Initialize Main Menu
 window.addEventListener('load', () => {
-    // Connect immediately
+    // Try to connect to server, but don't block app
     networkManager.connect();
 
-    // Show Auth Overlay by default
+    // Set up socket error handling for auth
+    networkManager.on('error', (msg) => {
+        console.log('Network error:', msg);
+        // Don't show alert, just log
+    });
+
+    // Check if we're running on GitHub Pages or similar static hosting
+    const isStaticHosting = window.location.hostname.includes('github.io') || 
+                            window.location.protocol === 'file:';
+    
+    // Show Auth Overlay by default for non-static hosting, otherwise skip to main menu
     const authOverlay = document.getElementById('auth-overlay');
     const mainMenu = document.getElementById('main-menu');
     
-    // Auth Logic
-    initAuthUI();
+    if (isStaticHosting) {
+        // Skip auth, use local storage only
+        console.log('Running on static hosting, skipping server auth');
+        authOverlay.style.display = 'none';
+        mainMenu.style.display = 'flex';
+        
+        // Load local profile
+        const profile = DataManager.load();
+        document.getElementById('menu-chip-count').innerText = profile.chips;
+    } else {
+        // Normal auth flow for local server
+        initAuthUI();
+    }
 
     // --- Main Menu Buttons ---
 
@@ -42,6 +63,12 @@ window.addEventListener('load', () => {
         btnOnline.parentNode.replaceChild(newBtn, btnOnline);
         
         newBtn.addEventListener('click', () => {
+            // Check if socket is connected before opening online lobby
+            if (!networkManager.isSocketConnected()) {
+                alert('无法连接到服务器，联机功能不可用。\n\n您可以：\n1. 检查网络连接\n2. 或者在本地运行服务器后重试\n3. 继续使用单机模式');
+                return;
+            }
+            
             mainMenu.style.display = 'none';
             document.getElementById('online-lobby-overlay').style.display = 'flex';
             
@@ -230,6 +257,13 @@ function initAuthUI() {
                 authMessage.innerText = '请输入用户名和密码';
                 return;
             }
+            
+            // Check if socket is connected before sending login request
+            if (!networkManager.isSocketConnected()) {
+                authMessage.innerText = '无法连接到服务器，请检查网络连接';
+                return;
+            }
+            
             networkManager.login(user, pass);
         });
     }
@@ -248,6 +282,12 @@ function initAuthUI() {
             }
             if (!pass || pass.length < 4) {
                 authMessage.innerText = '密码至少4个字符';
+                return;
+            }
+            
+            // Check if socket is connected before sending register request
+            if (!networkManager.isSocketConnected()) {
+                authMessage.innerText = '无法连接到服务器，请检查网络连接';
                 return;
             }
             

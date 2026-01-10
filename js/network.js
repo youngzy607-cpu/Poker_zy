@@ -30,7 +30,8 @@ class NetworkManager {
         });
 
         this.socket.on('error', (msg) => {
-            alert('Error: ' + msg);
+            console.log('Socket error:', msg);
+            // Don't show alert, just log
             handleEvent('error', msg);
         });
 
@@ -45,6 +46,11 @@ class NetworkManager {
         events.forEach(evt => {
             this.socket.on(evt, (data) => handleEvent(evt, data));
         });
+    }
+
+    // Check if socket is connected
+    isSocketConnected() {
+        return this.isConnected;
     }
 
     // --- Auth Methods ---
