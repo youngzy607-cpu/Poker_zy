@@ -20,37 +20,55 @@ document.addEventListener('keydown', unlockAudio);
 
 // Initialize Main Menu
 window.addEventListener('load', () => {
-    // Try to connect to server, but don't block app
-    networkManager.connect();
-
-    // Set up socket error handling for auth
-    networkManager.on('error', (msg) => {
-        console.log('Network error:', msg);
-        // Don't show alert, just log
-    });
-
-    // Check if we're running on GitHub Pages or similar static hosting
-    const isStaticHosting = window.location.hostname.includes('github.io') || 
-                            window.location.protocol === 'file:';
-    
-    // Show Auth Overlay by default for non-static hosting, otherwise skip to main menu
+    // Server Config Logic
+    const serverConfigOverlay = document.getElementById('server-config-overlay');
     const authOverlay = document.getElementById('auth-overlay');
     const mainMenu = document.getElementById('main-menu');
+    const serverUrlInput = document.getElementById('server-url');
+    const serverMessage = document.getElementById('server-message');
     
-    if (isStaticHosting) {
-        // Skip auth, use local storage only
-        console.log('Running on static hosting, skipping server auth');
-        authOverlay.style.display = 'none';
-        mainMenu.style.display = 'flex';
-        
-        // Load local profile
-        const profile = DataManager.load();
-        document.getElementById('menu-chip-count').innerText = profile.chips;
-    } else {
-        // Normal auth flow for local server
-        initAuthUI();
+    // Load saved server URL if exists
+    const savedServerUrl = localStorage.getItem('serverUrl');
+    if (savedServerUrl) {
+        serverUrlInput.value = savedServerUrl;
     }
-
+    
+    // Auth Logic
+    initAuthUI();
+    
+    // Connect to server button
+    document.getElementById('btn-connect-server').addEventListener('click', () => {
+        const serverUrl = serverUrlInput.value.trim();
+        if (!serverUrl) {
+            serverMessage.textContent = '请输入服务器地址';
+            return;
+        }
+        
+        serverMessage.textContent = '正在连接...';
+        
+        // Connect to server
+        networkManager.connect(serverUrl);
+        
+        // Save server URL
+        localStorage.setItem('serverUrl', serverUrl);
+        
+        // Check connection status
+        setTimeout(() => {
+            if (networkManager.isConnected) {
+                serverConfigOverlay.style.display = 'none';
+                authOverlay.style.display = 'flex';
+            } else {
+                serverMessage.textContent = '连接失败，请检查服务器地址';
+            }
+        }, 1500);
+    });
+    
+    // Local play only button
+    document.getElementById('btn-local-play').addEventListener('click', () => {
+        serverConfigOverlay.style.display = 'none';
+        authOverlay.style.display = 'flex';
+    });
+    
     // --- Main Menu Buttons ---
 
     // Online Mode Button (Now just opens Lobby)
@@ -63,12 +81,6 @@ window.addEventListener('load', () => {
         btnOnline.parentNode.replaceChild(newBtn, btnOnline);
         
         newBtn.addEventListener('click', () => {
-            // Check if socket is connected before opening online lobby
-            if (!networkManager.isSocketConnected()) {
-                alert('无法连接到服务器，联机功能不可用。\n\n您可以：\n1. 检查网络连接\n2. 或者在本地运行服务器后重试\n3. 继续使用单机模式');
-                return;
-            }
-            
             mainMenu.style.display = 'none';
             document.getElementById('online-lobby-overlay').style.display = 'flex';
             
@@ -257,13 +269,6 @@ function initAuthUI() {
                 authMessage.innerText = '请输入用户名和密码';
                 return;
             }
-            
-            // Check if socket is connected before sending login request
-            if (!networkManager.isSocketConnected()) {
-                authMessage.innerText = '无法连接到服务器，请检查网络连接';
-                return;
-            }
-            
             networkManager.login(user, pass);
         });
     }
@@ -282,12 +287,6 @@ function initAuthUI() {
             }
             if (!pass || pass.length < 4) {
                 authMessage.innerText = '密码至少4个字符';
-                return;
-            }
-            
-            // Check if socket is connected before sending register request
-            if (!networkManager.isSocketConnected()) {
-                authMessage.innerText = '无法连接到服务器，请检查网络连接';
                 return;
             }
             

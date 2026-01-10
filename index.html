@@ -17,8 +17,27 @@
     <link rel="stylesheet" href="style.css?v=3.3.1">
 </head>
 <body>
+    <!-- Server Config Overlay -->
+    <div id="server-config-overlay" class="lobby-overlay">
+        <div class="lobby-box server-config-box">
+            <h1>服务器配置</h1>
+            <div class="lobby-form">
+                <div style="margin-bottom: 15px;">
+                    <label for="server-url" style="display: block; margin-bottom: 8px; font-size: 0.9em; color: #ccc;">请输入服务器地址</label>
+                    <input type="text" id="server-url" class="lobby-input" placeholder="例如: http://192.168.1.100:3000" style="font-family: monospace;">
+                    <div style="margin-top: 5px; font-size: 0.8em; color: #888;">如果使用本地服务器，请输入电脑的IP地址和端口</div>
+                </div>
+                <div class="lobby-actions" style="flex-direction: column; gap: 10px;">
+                    <button id="btn-connect-server" class="btn-primary">连接</button>
+                    <button id="btn-local-play" class="btn-secondary">仅本地游玩</button>
+                </div>
+                <div id="server-message" style="color: #e74c3c; margin-top: 15px; min-height: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Auth Overlay -->
-    <div id="auth-overlay" class="lobby-overlay">
+    <div id="auth-overlay" class="lobby-overlay" style="display: none;">
         <div class="lobby-box auth-box">
             <h1>德州扑克</h1>
             
