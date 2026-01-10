@@ -45,6 +45,12 @@ window.addEventListener('load', () => {
             mainMenu.style.display = 'none';
             document.getElementById('online-lobby-overlay').style.display = 'flex';
             
+            // Load saved server URL
+            const savedServerUrl = localStorage.getItem('pokerServerUrl');
+            if (savedServerUrl) {
+                document.getElementById('server-url-input').value = savedServerUrl;
+            }
+            
             // Immediate fetch
             networkManager.getRoomList();
 
@@ -82,6 +88,30 @@ window.addEventListener('load', () => {
         if (lobbyPollInterval) clearInterval(lobbyPollInterval);
         document.getElementById('online-lobby-overlay').style.display = 'none';
         mainMenu.style.display = 'flex';
+    });
+    
+    // Server URL Configuration
+    document.getElementById('btn-set-server').addEventListener('click', () => {
+        const serverUrl = document.getElementById('server-url-input').value.trim();
+        if (!serverUrl) {
+            alert('请输入服务器地址');
+            return;
+        }
+        
+        // Save server URL to localStorage
+        localStorage.setItem('pokerServerUrl', serverUrl);
+        
+        // Disconnect and reconnect to new server
+        networkManager.disconnect();
+        setTimeout(() => {
+            networkManager.connect(serverUrl);
+            // Fetch room list after reconnection
+            setTimeout(() => {
+                networkManager.getRoomList();
+            }, 1000);
+        }, 500);
+        
+        alert('服务器地址已设置，正在重新连接...');
     });
 
     document.getElementById('btn-refresh-rooms').addEventListener('click', () => {

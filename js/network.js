@@ -3,12 +3,14 @@ class NetworkManager {
         this.socket = null;
         this.isConnected = false;
         this.listeners = {}; // Changed from callbacks to listeners array
+        this.serverUrl = null;
     }
 
-    connect() {
+    connect(serverUrl = null) {
         if (this.socket) return;
         
-        this.socket = io();
+        this.serverUrl = serverUrl || localStorage.getItem('pokerServerUrl') || window.location.origin;
+        this.socket = io(this.serverUrl);
 
         // Generic event handler
         const handleEvent = (event, data) => {

@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>德州扑克 v3.3.1</title>
+    <title>德州扑克 v3.3.2</title>
     
     <!-- PWA Support -->
-    <link rel="manifest" href="manifest.json?v=3.3.1">
+    <link rel="manifest" href="manifest.json?v=3.3.2">
     <meta name="theme-color" content="#1a1a1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,7 +14,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
     
-    <link rel="stylesheet" href="style.css?v=3.3.1">
+    <link rel="stylesheet" href="style.css?v=3.3.2">
 </head>
 <body>
     <!-- Auth Overlay -->
@@ -287,6 +287,18 @@
         <div class="lobby-box" style="min-width: 400px;">
             <h1>联机大厅</h1>
             <div class="lobby-form">
+                <!-- Server Configuration -->
+                <div class="server-config-section" style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #aaa; font-size: 0.9em;">服务器地址:</span>
+                        <input type="text" id="server-url-input" class="lobby-input" placeholder="http://localhost:3000" style="flex: 1; font-size: 0.9em;">
+                        <button id="btn-set-server" class="btn-secondary" style="padding: 8px 12px; font-size: 0.9em;">设置</button>
+                    </div>
+                    <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                        如果使用本地服务器，请输入电脑的IP地址和端口
+                    </div>
+                </div>
+                
                 <!-- Nickname input removed, using logged in user -->
                 
                 <div class="lobby-actions" style="flex-direction: column; gap: 15px;">
@@ -371,7 +383,7 @@
     <!-- 游戏主界面 -->
     <div class="game-container" style="display: none;">
         <!-- 版本号 (左上角) -->
-        <div class="version-tag">v3.3.1</div>
+        <div class="version-tag">v3.3.2</div>
 
         <!-- 返回主菜单 (右上角，音效左侧) -->
         <button id="btn-back-menu" class="icon-btn" title="返回主菜单">🏠</button>
@@ -465,23 +477,23 @@
         </div>
     </div>
 
-    <script src="js/card.js?v=3.3.1"></script>
-    <script src="js/audio.js?v=3.3.1"></script>
-    <script src="js/evaluator.js?v=3.3.1"></script>
-    <script src="js/player.js?v=3.3.1"></script>
+    <script src="js/card.js?v=3.3.2"></script>
+    <script src="js/audio.js?v=3.3.2"></script>
+    <script src="js/evaluator.js?v=3.3.2"></script>
+    <script src="js/player.js?v=3.3.2"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="js/data.js?v=3.3.1"></script>
-    <script src="js/achievements.js?v=3.3.1"></script>
-    <script src="js/network.js?v=3.3.1"></script>
-    <script src="js/ui.js?v=3.3.1"></script>
-    <script src="js/game_online.js?v=3.3.1"></script>
-    <script src="js/game.js?v=3.3.1"></script>
-    <script src="js/main.js?v=3.3.1"></script>
+    <script src="js/data.js?v=3.3.2"></script>
+    <script src="js/achievements.js?v=3.3.2"></script>
+    <script src="js/network.js?v=3.3.2"></script>
+    <script src="js/ui.js?v=3.3.2"></script>
+    <script src="js/game_online.js?v=3.3.2"></script>
+    <script src="js/game.js?v=3.3.2"></script>
+    <script src="js/main.js?v=3.3.2"></script>
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=3.3.1')
+                navigator.serviceWorker.register('./sw.js?v=3.3.2')
                     .then(registration => {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
                     })
