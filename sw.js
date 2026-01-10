@@ -1,4 +1,4 @@
-const CACHE_NAME = 'poker-solo-v3.1.4';
+const CACHE_NAME = 'poker-solo-v3.3.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -15,6 +15,8 @@ const ASSETS_TO_CACHE = [
   './js/network.js',
   './js/data.js',
   './js/achievements.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './icons/icon-192.svg',
   './icons/icon-512.svg'
 ];
