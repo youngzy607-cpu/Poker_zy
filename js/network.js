@@ -64,10 +64,20 @@ class NetworkManager {
     // --- Room Methods ---
     // Name is now handled by session on server
     createRoom(password) {
+        if (!this.isConnected || !this.socket) {
+            alert('未连接到服务器，请稍后再试');
+            console.error('[NetworkManager] Cannot create room: not connected');
+            return;
+        }
         this.socket.emit('createRoom', { password });
     }
 
     joinRoom(roomId, password) {
+        if (!this.isConnected || !this.socket) {
+            alert('未连接到服务器，请稍后再试');
+            console.error('[NetworkManager] Cannot join room: not connected');
+            return;
+        }
         this.socket.emit('joinRoom', { roomId, password });
     }
 

@@ -42,6 +42,12 @@ window.addEventListener('load', () => {
         btnOnline.parentNode.replaceChild(newBtn, btnOnline);
         
         newBtn.addEventListener('click', () => {
+            // 检查连接状态
+            if (!networkManager.isConnected) {
+                alert('正在连接服务器，请稍后再试...');
+                return;
+            }
+            
             mainMenu.style.display = 'none';
             document.getElementById('online-lobby-overlay').style.display = 'flex';
             

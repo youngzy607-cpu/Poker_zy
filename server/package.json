@@ -1,6 +1,6 @@
 {
   "name": "poker-server",
-  "version": "3.3.3",
+  "version": "3.3.4",
   "description": "Server for Texas Holdem",
   "main": "server.js",
   "engines": {
