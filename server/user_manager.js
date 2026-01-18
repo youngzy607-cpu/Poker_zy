@@ -134,6 +134,38 @@ class UserManager {
             chips: user.chips
         };
     }
+
+    // 清空所有用户数据（仅用于测试）
+    async clearAllUsers() {
+        try {
+            // 先删除所有战绩数据
+            const { error: statsError } = await supabase
+                .from('game_statistics')
+                .delete()
+                .neq('username', ''); // 删除所有记录
+
+            if (statsError) {
+                console.error('清空战绩数据失败:', statsError);
+            }
+
+            // 再删除所有用户
+            const { error: userError } = await supabase
+                .from('user_profiles')
+                .delete()
+                .neq('username', ''); // 删除所有记录
+
+            if (userError) {
+                console.error('清空用户数据失败:', userError);
+                return false;
+            }
+
+            console.log('✅ 所有用户数据已清空');
+            return true;
+        } catch (e) {
+            console.error('清空数据异常:', e);
+            return false;
+        }
+    }
 }
 
 module.exports = UserManager;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'poker-solo-v3.4.2';
+const CACHE_NAME = 'poker-solo-v3.3.8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

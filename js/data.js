@@ -104,11 +104,25 @@ class DataManager {
         localStorage.setItem(this.KEY, JSON.stringify(data));
     }
 
-    // 更新筹码（已由 NetworkManager 处理，保留接口兼容）
+    // 更新筹码 - 同时更新本地存储和loginData
     static updateChips(amount) {
+        // 1. 更新本地游戏数据
         const data = this._loadLocal();
         data.chips = amount;
         this.save(data);
+        
+        // 2. 同步更新loginData中的chips（这是主界面读取的数据源）
+        const loginData = localStorage.getItem('loginData');
+        if (loginData) {
+            try {
+                const parsed = JSON.parse(loginData);
+                parsed.chips = amount;
+                localStorage.setItem('loginData', JSON.stringify(parsed));
+                console.log(`[筹码同步] 本地等码已更新为: ${amount}`);
+            } catch (e) {
+                console.error('更新loginData失败:', e);
+            }
+        }
     }
 
     // 记录一局游戏结果（改为上报服务器）

@@ -204,6 +204,22 @@ app.post('/api/stats/:username/reset', async (req, res) => {
     }
 });
 
+// 清空所有用户数据（仅用于测试）
+app.post('/api/admin/clear-all-users', async (req, res) => {
+    try {
+        console.log('⚠️ 收到清空所有用户数据请求');
+        const success = await userManager.clearAllUsers();
+        if (success) {
+            res.json({ success: true, message: '所有用户数据已清空' });
+        } else {
+            res.status(500).json({ success: false, error: '清空失败' });
+        }
+    } catch (e) {
+        console.error('清空API异常:', e);
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
+});
+
 // ===========================================
 // 启动服务器
 // ===========================================

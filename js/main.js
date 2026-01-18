@@ -41,15 +41,28 @@ window.addEventListener('load', () => {
         const newBtn = btnOnline.cloneNode(true);
         btnOnline.parentNode.replaceChild(newBtn, btnOnline);
         
-        newBtn.addEventListener('click', () => {
-            // 检查连接状态
+        newBtn.addEventListener('click', async () => {
+            // 检查连接状态，如果未连接则尝试重连
             if (!networkManager.isConnected) {
-                alert('正在连接服务器，请稍后再试...');
-                return;
+                try {
+                    // 显示连接中提示
+                    const connectMsg = '正在连接服务器...';
+                    const lobbyMsg = document.getElementById('lobby-message');
+                    if (lobbyMsg) lobbyMsg.innerText = connectMsg;
+                    
+                    await networkManager.ensureConnected();
+                } catch (err) {
+                    alert('连接服务器失败，请检查网络后重试');
+                    return;
+                }
             }
             
             mainMenu.style.display = 'none';
             document.getElementById('online-lobby-overlay').style.display = 'flex';
+            
+            // 清除连接提示
+            const lobbyMsg = document.getElementById('lobby-message');
+            if (lobbyMsg) lobbyMsg.innerText = '';
             
             // Immediate fetch
             networkManager.getRoomList();
