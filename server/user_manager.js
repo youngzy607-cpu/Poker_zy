@@ -1,91 +1,138 @@
-const fs = require('fs');
-const path = require('path');
-
-const DATA_FILE = path.join(__dirname, 'data', 'users.json');
+// 用户管理器 - Supabase 版本
+const { supabase } = require('./supabase_client');
 
 class UserManager {
     constructor() {
-        this.users = {};
-        this.load();
+        console.log('UserManager 已初始化（使用 Supabase 数据库）');
     }
 
-    load() {
+    // 注册用户
+    async register(username, password, avatarId) {
         try {
-            if (fs.existsSync(DATA_FILE)) {
-                const data = fs.readFileSync(DATA_FILE, 'utf8');
-                this.users = JSON.parse(data);
-            } else {
-                // Initialize empty if not exists
-                this.save();
+            // 检查用户是否已存在
+            const { data: existing } = await supabase
+                .from('user_profiles')
+                .select('username')
+                .eq('username', username)
+                .single();
+
+            if (existing) {
+                return { success: false, error: 'USERNAME_EXISTS' };
             }
+
+            // 创建新用户
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .insert([{
+                    username: username,
+                    password: password, // 生产环境需要加密
+                    avatar: avatarId || 0,
+                    chips: 10000, // 默认起始筹码
+                }])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('注册失败:', error);
+                return { success: false, error: 'DATABASE_ERROR' };
+            }
+
+            // 为新用户创建空战绩记录
+            await supabase
+                .from('game_statistics')
+                .insert([{ username: username }]);
+
+            console.log(`✅ 用户注册成功: ${username}`);
+            return { 
+                success: true, 
+                user: this._toPublicProfile(data) 
+            };
+
         } catch (e) {
-            console.error('Error loading users:', e);
-            this.users = {};
+            console.error('注册异常:', e);
+            return { success: false, error: 'SYSTEM_ERROR' };
         }
     }
 
-    save() {
+    // 登录验证
+    async login(username, password) {
         try {
-            // Ensure directory exists
-            const dir = path.dirname(DATA_FILE);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
+            const { data: user, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('username', username)
+                .single();
+
+            if (error || !user) {
+                return { success: false, error: 'USER_NOT_FOUND' };
             }
-            fs.writeFileSync(DATA_FILE, JSON.stringify(this.users, null, 2));
+
+            if (user.password !== password) {
+                return { success: false, error: 'WRONG_PASSWORD' };
+            }
+
+            console.log(`✅ 用户登录成功: ${username}`);
+            return { 
+                success: true, 
+                user: this._toPublicProfile(user) 
+            };
+
         } catch (e) {
-            console.error('Error saving users:', e);
+            console.error('登录异常:', e);
+            return { success: false, error: 'SYSTEM_ERROR' };
         }
     }
 
-    register(username, password, avatarId) {
-        if (this.users[username]) {
-            return { success: false, error: 'USERNAME_EXISTS' };
+    // 获取用户信息
+    async getUser(username) {
+        try {
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('username', username)
+                .single();
+
+            return error ? null : data;
+        } catch (e) {
+            console.error('获取用户信息异常:', e);
+            return null;
         }
-
-        this.users[username] = {
-            username: username,
-            password: password, // In a real app, hash this!
-            avatar: avatarId || 0,
-            chips: 10000, // Default starting chips
-            regDate: new Date().toISOString()
-        };
-
-        this.save();
-        return { success: true, user: this.getPublicProfile(username) };
     }
 
-    login(username, password) {
-        const user = this.users[username];
-        if (!user) {
-            return { success: false, error: 'USER_NOT_FOUND' };
-        }
-        if (user.password !== password) {
-            return { success: false, error: 'WRONG_PASSWORD' };
-        }
-        return { success: true, user: this.getPublicProfile(username) };
+    // 获取公开资料
+    async getPublicProfile(username) {
+        const user = await this.getUser(username);
+        return user ? this._toPublicProfile(user) : null;
     }
 
-    getUser(username) {
-        return this.users[username];
+    // 更新筹码余额
+    async updateChips(username, amount) {
+        try {
+            const { error } = await supabase
+                .from('user_profiles')
+                .update({ chips: amount })
+                .eq('username', username);
+
+            if (error) {
+                console.error('更新筹码失败:', error);
+                return false;
+            }
+
+            console.log(`💰 筹码已更新: ${username} -> ${amount}`);
+            return true;
+        } catch (e) {
+            console.error('更新筹码异常:', e);
+            return false;
+        }
     }
 
-    getPublicProfile(username) {
-        const user = this.users[username];
-        if (!user) return null;
+    // 转换为公开资料（不包含密码）
+    _toPublicProfile(user) {
         return {
             username: user.username,
             avatar: user.avatar,
             chips: user.chips
         };
-    }
-
-    updateChips(username, amount) {
-        if (this.users[username]) {
-            this.users[username].chips = amount;
-            this.save();
-            return true;
-        }
-        return false;
     }
 }
 

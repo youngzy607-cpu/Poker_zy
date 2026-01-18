@@ -57,9 +57,9 @@ const AchievementConfig = [
 ];
 
 class AchievementManager {
-    static check(stats, currentChips) {
+    static async check(stats, currentChips) {
         const unlocked = [];
-        const profile = DataManager.load();
+        const profile = await DataManager.load();
         const achievedIds = new Set(profile.achievements || []);
 
         AchievementConfig.forEach(ach => {
@@ -104,6 +104,9 @@ class AchievementManager {
             unlocked.forEach(u => totalReward += u.reward);
             profile.chips += totalReward;
             
+            // 同步到服务器
+            await this._syncToServer(profile.achievements);
+            
             DataManager.save(profile);
             
             return unlocked;
@@ -112,11 +115,32 @@ class AchievementManager {
         return [];
     }
     
-    static getProgress(achId) {
+    // 同步成就列表到服务器
+    static async _syncToServer(achievements) {
+        const username = DataManager.getCurrentUser();
+        if (!username) return;
+
+        try {
+            const response = await fetch(`${DataManager.API_BASE}/stats/${username}/achievements`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ achievements })
+            });
+            
+            const res = await response.json();
+            if (res.success) {
+                console.log('🏆 成就已同步到服务器');
+            }
+        } catch (e) {
+            console.error('成就同步失败:', e);
+        }
+    }
+    
+    static async getProgress(achId) {
         const ach = AchievementConfig.find(a => a.id === achId);
         if (!ach) return 0;
         
-        const profile = DataManager.load();
+        const profile = await DataManager.load();
         const stats = profile.stats;
         
         // If already achieved, return target

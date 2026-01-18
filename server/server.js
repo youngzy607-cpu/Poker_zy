@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const RoomManager = require('./room_manager');
 const UserManager = require('./user_manager');
+const StatsManager = require('./stats_manager');
+const { testConnection } = require('./supabase_client');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,11 +13,15 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// 支持 JSON 请求体解析
+app.use(express.json());
+
 // Serve static files from the parent directory (project root)
 app.use(express.static(path.join(__dirname, '../')));
 
 const roomManager = new RoomManager(io);
 const userManager = new UserManager();
+const statsManager = new StatsManager();
 roomManager.setUserManager(userManager); // Inject UserManager
 
 // Map socket.id -> username (Session management)
@@ -29,8 +35,8 @@ io.on('connection', (socket) => {
 
     // --- Auth Events ---
 
-    socket.on('login', ({ username, password }) => {
-        const result = userManager.login(username, password);
+    socket.on('login', async ({ username, password }) => {
+        const result = await userManager.login(username, password);
         if (result.success) {
             sessions[socket.id] = result.user.username;
             socket.emit('loginSuccess', result.user);
@@ -40,8 +46,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('register', ({ username, password, avatarId }) => {
-        const result = userManager.register(username, password, avatarId);
+    socket.on('register', async ({ username, password, avatarId }) => {
+        const result = await userManager.register(username, password, avatarId);
         if (result.success) {
             sessions[socket.id] = result.user.username;
             socket.emit('registerSuccess', result.user);
@@ -62,14 +68,14 @@ io.on('connection', (socket) => {
     });
 
     // Client requests to create a room
-    socket.on('createRoom', ({ password }) => {
+    socket.on('createRoom', async ({ password }) => {
         const username = sessions[socket.id];
         if (!username) {
             socket.emit('error', '请先登录');
             return;
         }
         
-        const userProfile = userManager.getUser(username);
+        const userProfile = await userManager.getUser(username);
         // Sync chips from server to room? Or room uses its own logic?
         // Plan: Room takes user's current chips.
         
@@ -85,14 +91,14 @@ io.on('connection', (socket) => {
     });
 
     // Client requests to join a room
-    socket.on('joinRoom', ({ roomId, password }) => {
+    socket.on('joinRoom', async ({ roomId, password }) => {
         const username = sessions[socket.id];
         if (!username) {
             socket.emit('error', '请先登录');
             return;
         }
         
-        const userProfile = userManager.getUser(username);
+        const userProfile = await userManager.getUser(username);
         const result = roomManager.joinRoom(roomId, socket, userProfile.username, password, userProfile);
         
         if (!result.success) {
@@ -117,10 +123,10 @@ io.on('connection', (socket) => {
     });
 
     // Client updates balance (e.g. from single player mode)
-    socket.on('updateBalance', (amount) => {
+    socket.on('updateBalance', async (amount) => {
         const username = sessions[socket.id];
         if (username) {
-            userManager.updateChips(username, amount);
+            await userManager.updateChips(username, amount);
             // Optionally broadcast or confirm
             // console.log(`Updated balance for ${username}: ${amount}`);
         }
@@ -150,6 +156,71 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+// ===========================================
+// HTTP API 接口（用于前端直接调用）
+// ===========================================
+
+// 获取用户战绩
+app.get('/api/stats/:username', async (req, res) => {
+    try {
+        const stats = await statsManager.getStats(req.params.username);
+        res.json({ success: true, data: stats });
+    } catch (e) {
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
 });
+
+// 记录一局游戏结果
+app.post('/api/stats/:username/record', async (req, res) => {
+    try {
+        const { profit, hand, pot, cards } = req.body;
+        const success = await statsManager.recordHand(req.params.username, {
+            profit, hand, pot, cards
+        });
+        res.json({ success });
+    } catch (e) {
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
+});
+
+// 更新成就列表
+app.post('/api/stats/:username/achievements', async (req, res) => {
+    try {
+        const { achievements } = req.body;
+        const success = await statsManager.updateAchievements(req.params.username, achievements);
+        res.json({ success });
+    } catch (e) {
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
+});
+
+// 重置战绩
+app.post('/api/stats/:username/reset', async (req, res) => {
+    try {
+        const success = await statsManager.resetStats(req.params.username);
+        res.json({ success });
+    } catch (e) {
+        res.status(500).json({ success: false, error: '服务器错误' });
+    }
+});
+
+// ===========================================
+// 启动服务器
+// ===========================================
+
+(async () => {
+    // 测试 Supabase 连接
+    console.log('\n正在连接 Supabase 数据库...');
+    const connected = await testConnection();
+    
+    if (!connected) {
+        console.error('⚠️  警告: Supabase 连接失败，请检查配置');
+        console.error('请确认 .env 文件存在且配置正确');
+        // 继续启动，但数据库功能会不可用
+    }
+    
+    server.listen(PORT, () => {
+        console.log(`\n✅ 服务器运行中: http://localhost:${PORT}`);
+        console.log(`\ud83c� 德州扑克服务器已启动！\n`);
+    });
+})();

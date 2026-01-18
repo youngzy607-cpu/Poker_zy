@@ -1,5 +1,8 @@
 class DataManager {
     static KEY = 'texasholdem_profile_v1';
+    static API_BASE = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000/api' 
+        : `${window.location.origin}/api`;
 
     static get defaultProfile() {
         return {
@@ -16,7 +19,52 @@ class DataManager {
         };
     }
 
-    static load() {
+    // 获取当前登录用户名
+    static getCurrentUser() {
+        const loginData = localStorage.getItem('loginData');
+        if (!loginData) return null;
+        try {
+            return JSON.parse(loginData).username;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // 从服务器加载战绩数据
+    static async load() {
+        const username = this.getCurrentUser();
+        
+        // 如果未登录，返回本地数据（兼容旧版）
+        if (!username) {
+            console.log('未登录，使用本地数据');
+            return this._loadLocal();
+        }
+
+        try {
+            const response = await fetch(`${this.API_BASE}/stats/${username}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('✅ 从服务器加载战绩:', username);
+                // 构造返回格式与本地版本一致
+                return {
+                    chips: this._getChipsFromStorage(), // 筹码从 localStorage 读取
+                    stats: result.data,
+                    history: result.data.history || [],
+                    achievements: result.data.achievements || []
+                };
+            } else {
+                console.warn('服务器返回失败，使用本地数据');
+                return this._loadLocal();
+            }
+        } catch (e) {
+            console.error('加载战绩失败:', e);
+            return this._loadLocal();
+        }
+    }
+
+    // 兼容旧版：从 localStorage 加载
+    static _loadLocal() {
         const data = localStorage.getItem(this.KEY);
         if (!data) return this.defaultProfile;
         try {
@@ -28,19 +76,62 @@ class DataManager {
         }
     }
 
+    // 获取筹码余额（从 localStorage）
+    static _getChipsFromStorage() {
+        const loginData = localStorage.getItem('loginData');
+        if (!loginData) return 1000;
+        try {
+            return JSON.parse(loginData).chips || 1000;
+        } catch (e) {
+            return 1000;
+        }
+    }
+
+    // 保存数据（已弃用，但保留接口兼容）
     static save(data) {
         localStorage.setItem(this.KEY, JSON.stringify(data));
     }
 
+    // 更新筹码（已由 NetworkManager 处理，保留接口兼容）
     static updateChips(amount) {
-        const data = this.load();
+        const data = this._loadLocal();
         data.chips = amount;
         this.save(data);
     }
 
-    static recordHand(result) {
-        // result: { profit: number, hand: {rank, name, tieBreakers}, pot: number, cards: [] }
-        const data = this.load();
+    // 记录一局游戏结果（改为上报服务器）
+    static async recordHand(result) {
+        const username = this.getCurrentUser();
+        
+        // 如果未登录，使用本地存储（兼容旧版）
+        if (!username) {
+            console.log('未登录，使用本地存储战绩');
+            return this._recordHandLocal(result);
+        }
+
+        try {
+            const response = await fetch(`${this.API_BASE}/stats/${username}/record`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result)
+            });
+            
+            const res = await response.json();
+            if (res.success) {
+                console.log('📊 战绩已同步到服务器');
+            } else {
+                console.warn('战绩同步失败，使用本地备份');
+                this._recordHandLocal(result);
+            }
+        } catch (e) {
+            console.error('战绩上报失败:', e);
+            this._recordHandLocal(result);
+        }
+    }
+
+    // 本地记录（兼容旧版）
+    static _recordHandLocal(result) {
+        const data = this._loadLocal();
         
         // Update basic stats
         data.stats.totalHands++;
@@ -60,16 +151,12 @@ class DataManager {
         }
 
         // Check best hand
-        // Rank 1-9 (High Card to Straight Flush)
         if (result.hand && result.hand.rank > data.stats.bestHand.rank) {
             data.stats.bestHand = {
                 rank: result.hand.rank,
                 name: result.hand.name,
-                cards: result.cards // Array of card strings or objects
+                cards: result.cards
             };
-        } else if (result.hand && result.hand.rank === data.stats.bestHand.rank) {
-             // Tie-breaker logic could go here, but for now simple overwrite if same rank is acceptable or ignore
-             // Usually we want the "highest" cards, but let's keep it simple: only upgrade if rank is strictly higher
         }
 
         // Add to history (limit to last 20)
@@ -85,7 +172,29 @@ class DataManager {
         this.save(data);
     }
     
-    static reset() {
+    // 重置战绩
+    static async reset() {
+        const username = this.getCurrentUser();
+        
+        if (!username) {
+            this.save(this.defaultProfile);
+            return this.defaultProfile;
+        }
+
+        try {
+            const response = await fetch(`${this.API_BASE}/stats/${username}/reset`, {
+                method: 'POST'
+            });
+            
+            const res = await response.json();
+            if (res.success) {
+                console.log('✅ 战绩已重置');
+                return this.defaultProfile;
+            }
+        } catch (e) {
+            console.error('重置战绩失败:', e);
+        }
+        
         this.save(this.defaultProfile);
         return this.defaultProfile;
     }
