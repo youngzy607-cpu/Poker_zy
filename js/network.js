@@ -84,9 +84,9 @@ class NetworkManager {
         this.socket.emit('register', { username, password, avatarId });
     }
 
-    // 恢复session：重新连接时自动认证
+    // 恢复session：重新连接时自动认证（从 sessionStorage 读取，确保每个标签页独立）
     _restoreSession() {
-        const loginData = localStorage.getItem('loginData');
+        const loginData = sessionStorage.getItem('loginData');
         if (loginData) {
             try {
                 const { username } = JSON.parse(loginData);

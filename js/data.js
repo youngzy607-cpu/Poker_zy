@@ -19,9 +19,9 @@ class DataManager {
         };
     }
 
-    // 获取当前登录用户名
+    // 获取当前登录用户名（从 sessionStorage 读取，确保每个标签页独立）
     static getCurrentUser() {
-        const loginData = localStorage.getItem('loginData');
+        const loginData = sessionStorage.getItem('loginData');
         if (!loginData) return null;
         try {
             return JSON.parse(loginData).username;
@@ -88,9 +88,9 @@ class DataManager {
         }
     }
 
-    // 获取筹码余额（从 localStorage）
+    // 获取筹码余额（从 sessionStorage 读取）
     static _getChipsFromStorage() {
-        const loginData = localStorage.getItem('loginData');
+        const loginData = sessionStorage.getItem('loginData');
         if (!loginData) return 1000;
         try {
             return JSON.parse(loginData).chips || 1000;
@@ -104,21 +104,21 @@ class DataManager {
         localStorage.setItem(this.KEY, JSON.stringify(data));
     }
 
-    // 更新筹码 - 同时更新本地存储和loginData
+    // 更新筹码 - 同时更新本地存储和 sessionStorage 中的 loginData
     static updateChips(amount) {
         // 1. 更新本地游戏数据
         const data = this._loadLocal();
         data.chips = amount;
         this.save(data);
         
-        // 2. 同步更新loginData中的chips（这是主界面读取的数据源）
-        const loginData = localStorage.getItem('loginData');
+        // 2. 同步更新 sessionStorage 中的 chips（这是主界面读取的数据源）
+        const loginData = sessionStorage.getItem('loginData');
         if (loginData) {
             try {
                 const parsed = JSON.parse(loginData);
                 parsed.chips = amount;
-                localStorage.setItem('loginData', JSON.stringify(parsed));
-                console.log(`[筹码同步] 本地等码已更新为: ${amount}`);
+                sessionStorage.setItem('loginData', JSON.stringify(parsed));
+                console.log(`[筹码同步] 本地筹码已更新为: ${amount}`);
             } catch (e) {
                 console.error('更新loginData失败:', e);
             }
