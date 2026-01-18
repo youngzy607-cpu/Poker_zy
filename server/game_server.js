@@ -252,15 +252,22 @@ class GameServer {
             });
         }
         
-        // Merge waiting players (只合并有筹码的)
+        // 合并等待玩家：只要有筹码就可以加入（不检查 isSittingOut）
         if (this.waitingPlayers.length > 0) {
-            const joiners = this.waitingPlayers.filter(p => p.chips > 0 && !p.isSittingOut);
+            const joiners = this.waitingPlayers.filter(p => p.chips > 0);
             if (joiners.length > 0) {
+                // 重置加入玩家的旁观状态
+                joiners.forEach(p => {
+                    p.isSittingOut = false;
+                });
                 this.players.push(...joiners);
-                this.waitingPlayers = this.waitingPlayers.filter(p => p.chips <= 0 || p.isSittingOut);
+                // 从等待列表中移除已加入的玩家
+                this.waitingPlayers = this.waitingPlayers.filter(p => p.chips <= 0);
                 this.broadcastMessage('等待的玩家已加入牌局');
             }
         }
+        
+        console.log(`[startNewHand] players: ${this.players.length}, waitingPlayers: ${this.waitingPlayers.length}`);
 
         if (this.players.length < this.minPlayers) {
             this.gameStarted = false;
