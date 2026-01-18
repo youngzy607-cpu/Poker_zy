@@ -476,7 +476,7 @@ class OnlineGame {
         });
         
         // Back Button - 重新绑定到单机模式的退出逻辑
-        document.getElementById('btn-back-menu').addEventListener('click', () => {
+        document.getElementById('btn-back-menu').addEventListener('click', async () => {
             let msg = '确定要返回主菜单吗？';
             if (game.mode === 'cash') {
                 msg += '当前牌局将直接结束，您的筹码将自动保存。';
@@ -488,7 +488,7 @@ class OnlineGame {
                 game.stopGame(); 
                 document.querySelector('.game-container').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'flex';
-                game.updateMenuChips();
+                await game.updateMenuChips();
             }
         });
     }

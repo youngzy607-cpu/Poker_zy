@@ -267,6 +267,12 @@ function initAuthUI() {
         authOverlay.style.display = 'none';
         document.getElementById('main-menu').style.display = 'flex';
         
+        // 保存完整的登录信息（包含 username 和 chips）
+        localStorage.setItem('loginData', JSON.stringify({
+            username: user.username,
+            chips: user.chips
+        }));
+        
         // Update local DataManager with server chips
         DataManager.updateChips(user.chips);
         document.getElementById('menu-chip-count').innerText = user.chips;
@@ -279,6 +285,15 @@ function initAuthUI() {
         console.log('Register Success:', user);
         authOverlay.style.display = 'none';
         document.getElementById('main-menu').style.display = 'flex';
+        
+        // 保存完整的登录信息（包含 username 和 chips）
+        localStorage.setItem('loginData', JSON.stringify({
+            username: user.username,
+            chips: user.chips
+        }));
+        
+        // 清除旧的本地战绩数据，确保新账号从零开始
+        localStorage.removeItem('texasholdem_profile_v1');
         
         // Update local DataManager with server chips
         DataManager.updateChips(user.chips);

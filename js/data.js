@@ -34,10 +34,10 @@ class DataManager {
     static async load() {
         const username = this.getCurrentUser();
         
-        // 如果未登录，返回本地数据（兼容旧版）
+        // 如果未登录，返回默认数据
         if (!username) {
-            console.log('未登录，使用本地数据');
-            return this._loadLocal();
+            console.log('未登录，使用默认数据');
+            return this.defaultProfile;
         }
 
         try {
@@ -48,18 +48,30 @@ class DataManager {
                 console.log('✅ 从服务器加载战绩:', username);
                 // 构造返回格式与本地版本一致
                 return {
-                    chips: this._getChipsFromStorage(), // 筹码从 localStorage 读取
+                    chips: this._getChipsFromStorage(),
                     stats: result.data,
                     history: result.data.history || [],
                     achievements: result.data.achievements || []
                 };
             } else {
-                console.warn('服务器返回失败，使用本地数据');
-                return this._loadLocal();
+                // 服务器返回失败，返回默认数据（不读取本地旧数据）
+                console.warn('服务器返回失败，使用默认数据');
+                return {
+                    chips: this._getChipsFromStorage(),
+                    stats: this.defaultProfile.stats,
+                    history: [],
+                    achievements: []
+                };
             }
         } catch (e) {
             console.error('加载战绩失败:', e);
-            return this._loadLocal();
+            // 网络错误时返回默认数据（不读取本地旧数据）
+            return {
+                chips: this._getChipsFromStorage(),
+                stats: this.defaultProfile.stats,
+                history: [],
+                achievements: []
+            };
         }
     }
 

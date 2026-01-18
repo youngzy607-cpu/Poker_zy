@@ -181,7 +181,7 @@ class Game {
             }
         });
 
-        document.getElementById('btn-back-menu').addEventListener('click', () => {
+        document.getElementById('btn-back-menu').addEventListener('click', async () => {
             let msg = '确定要返回主菜单吗？';
             if (this.mode === 'cash') {
                 msg += '当前牌局将直接结束，您的筹码将自动保存。';
@@ -193,7 +193,7 @@ class Game {
                 this.stopGame(); 
                 document.querySelector('.game-container').style.display = 'none';
                 document.getElementById('main-menu').style.display = 'flex';
-                this.updateMenuChips();
+                await this.updateMenuChips();
             }
         });
 
