@@ -279,8 +279,8 @@ class Game {
         return Math.max(0, player.chips - callAmt);
     }
 
-    updateMenuChips() {
-        const data = DataManager.load();
+    async updateMenuChips() {
+        const data = await DataManager.load();
         const el = document.getElementById('menu-chip-count');
         if (el) el.innerText = data.chips;
     }
