@@ -1,6 +1,6 @@
 {
   "name": "texas-holdem-poker",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "description": "德州扑克 Web 版",
   "engines": {
     "node": ">=16.0.0"

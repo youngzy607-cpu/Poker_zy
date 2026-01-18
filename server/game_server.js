@@ -25,9 +25,15 @@ class GameServer {
         this.hostSocketId = null; // Who can start the game
     }
 
-    addPlayer(socketId, name) {
+    addPlayer(socketId, name, userProfile = null) {
         const player = new Player(name, 1000);
         player.socketId = socketId;
+        
+        // 保存用户信息
+        if (userProfile) {
+            player.avatar = userProfile.avatar || 0; // 头像ID
+            player.username = userProfile.username || name; // 用户名
+        }
 
         // First player becomes host
         if (this.players.length === 0 && this.waitingPlayers.length === 0) {

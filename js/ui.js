@@ -148,10 +148,16 @@ class UI {
             div.querySelector('.player-chips').innerText = p.chips;
             this.updateStatusBubble(div.querySelector('.player-status'), p);
             
-            // Update Opponent Avatar (in case it changed or wasn't set right)
+            // 更新对手头像和名字
             const oppAvatarEl = div.querySelector('.opponent-avatar');
-            if (oppAvatarEl && p.avatar !== undefined) {
-                 oppAvatarEl.innerText = this.AVATARS[p.avatar] || '👤';
+            if (oppAvatarEl) {
+                // 如果有avatar属性,使用注册头像;否则显示名字
+                if (p.avatar !== undefined && p.avatar !== null) {
+                    oppAvatarEl.innerText = this.AVATARS[p.avatar] || '👤';
+                } else if (p.name) {
+                    // 单机模式或未注册用户,显示名字
+                    oppAvatarEl.innerText = p.name;
+                }
             }
 
             div.classList.toggle('active', game.activePlayerIndex === i);

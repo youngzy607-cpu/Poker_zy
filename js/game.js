@@ -293,6 +293,11 @@ class Game {
         document.getElementById('lobby-overlay').style.display = 'none';
         document.querySelector('.game-container').style.display = 'flex';
         
+        // 单机模式: 确保不显示联机等待界面
+        document.getElementById('host-start-container').style.display = 'none';
+        document.getElementById('waiting-host-overlay').style.display = 'none';
+        document.getElementById('waiting-next-hand-overlay').style.display = 'none';
+        
         if (typeof soundManager !== 'undefined') {
             soundManager.init();
         }
@@ -1066,18 +1071,19 @@ class Game {
             const newProfile = DataManager.load();
             const user = this.players[0];
             
+            // 计算奖励增加量
+            const rewardAmount = newProfile.chips - profile.chips;
+            
             // If achievement gives reward, update server AND local UI immediately
             if(networkManager) networkManager.updateBalance(newProfile.chips);
             
-            // Update local bankroll variable (profit calculation)
-            this.bankroll = newProfile.chips - user.chips; 
+            // 更新bankroll(总资产增加,但桌面筹码不变)
+            this.bankroll += rewardAmount;
 
-            // FORCE UI UPDATE: Update player's chip display immediately to show reward
-            user.chips = newProfile.chips; // Sync object
-            this.ui.updatePlayerInfo(user, 0); // Update visual (0 is player index)
-            
-            // Also update the "Total Assets" in menu if possible, but we are in game
-            // The stat overlay will read from DataManager so it's fine.
+            // 注意:不能直接把user.chips改成newProfile.chips,
+            // 因为newProfile.chips是总资产,而user.chips是桌面筹码
+            // 奖励应该加到bankroll中,而不是直接加到桌面
+            // UI显示不需要更新,因为桌面筹码没有变化
         }
     }
 }

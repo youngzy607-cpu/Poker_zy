@@ -234,6 +234,15 @@ class OnlineGame {
         // UI.setupOpponents clears and rebuilds.
         this.ui.setupOpponents(uiPlayers.slice(1));
         
+        // 更新用户自己的头像（联机模式）
+        if (uiPlayers[0] && uiPlayers[0].avatar !== undefined && uiPlayers[0].avatar !== null) {
+            const userAvatarEl = document.querySelector('.user-avatar');
+            if (userAvatarEl) {
+                const avatars = ['👨‍💼', '👩‍💼', '🕵️‍♂️', '🤠', '👽', '🤖', '🐶', '🐯'];
+                userAvatarEl.innerText = avatars[uiPlayers[0].avatar] || '👤';
+            }
+        }
+        
         this.ui.updateCommunityCards(community);
         this.ui.updatePot(state.pot);
         this.ui.updatePlayers(uiPlayers);
