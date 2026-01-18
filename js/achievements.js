@@ -107,7 +107,11 @@ class AchievementManager {
             // 同步到服务器
             await this._syncToServer(profile.achievements);
             
-            DataManager.save(profile);
+            // 使用 updateChips 确保 loginData 也被更新（之前用 save 会导致 loginData 不同步）
+            DataManager.updateChips(profile.chips);
+            DataManager.save(profile);  // 保存成就列表等其他数据
+            
+            console.log(`🏆 成就奖励已发放: +${totalReward}, 新筹码: ${profile.chips}`);
             
             return unlocked;
         }

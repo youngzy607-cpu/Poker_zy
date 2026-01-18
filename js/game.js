@@ -994,8 +994,8 @@ class Game {
         }
     }
 
-    triggerNonBlockingRebuy() {
-        const profile = DataManager.load();
+    async triggerNonBlockingRebuy() {
+        const profile = await DataManager.load();
         this.bankroll = profile.chips; 
 
         // Non-blocking UI call

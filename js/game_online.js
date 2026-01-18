@@ -141,14 +141,14 @@ class OnlineGame {
         });
     }
 
-    exitGame() {
+    async exitGame() {
         if(confirm('确定要退出房间吗？')) {
              // 1. 保存当前桌面筹码到账户（无论多少都要返还）
              if (this.gameState && this.gameState.players) {
                  const me = this.gameState.players.find(p => p.socketId === this.socketId);
                  if (me) {
                      // 将桌面筹码返还到账户（包括0筹码的情况）
-                     const profile = DataManager.load();
+                     const profile = await DataManager.load();
                      const newChips = profile.chips + me.chips;
                      console.log(`[退出联机] 原账户筹码: ${profile.chips}, 桌面筹码: ${me.chips}, 返还后: ${newChips}`);
                      DataManager.updateChips(newChips);
