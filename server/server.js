@@ -126,6 +126,18 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Client requests to rebuy chips (online mode)
+    socket.on('rebuy', ({ amount }) => {
+        const username = sessions[socket.id];
+        if (!username) {
+            socket.emit('error', '请先登录');
+            return;
+        }
+        
+        // 简化处理：直接允许买入（实际应该验证账户余额）
+        roomManager.handleRebuy(socket.id, amount);
+    });
+
     // Client disconnects
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);

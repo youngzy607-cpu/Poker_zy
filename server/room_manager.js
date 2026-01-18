@@ -111,6 +111,16 @@ class RoomManager {
         }
         this.socketToRoom.delete(socketId);
     }
+
+    handleRebuy(socketId, amount) {
+        const roomId = this.socketToRoom.get(socketId);
+        if (!roomId) return;
+
+        const game = this.rooms.get(roomId);
+        if (game) {
+            game.handleRebuy(socketId, amount);
+        }
+    }
 }
 
 module.exports = RoomManager;

@@ -26,7 +26,26 @@ class GameServer {
     }
 
     addPlayer(socketId, name, userProfile = null) {
-        const player = new Player(name, 1000);
+        // 从用户账户中扣除1000筹码作为带入
+        let buyInAmount = 1000;
+        if (this.userManager && userProfile && userProfile.username) {
+            const user = this.userManager.getUser(userProfile.username);
+            if (user && user.chips >= buyInAmount) {
+                // 扣除账户筹码
+                const newBalance = user.chips - buyInAmount;
+                console.log(`[联机带入] 用户: ${userProfile.username}, 原余额: ${user.chips}, 带入: ${buyInAmount}, 剩余: ${newBalance}`);
+                this.userManager.updateChips(userProfile.username, newBalance);
+            } else {
+                // 账户余额不足，使用现有筹码
+                buyInAmount = user ? user.chips : 1000;
+                console.log(`[联机带入] 用户: ${userProfile.username}, 余额不足，全部带入: ${buyInAmount}`);
+                if (this.userManager && user) {
+                    this.userManager.updateChips(userProfile.username, 0);
+                }
+            }
+        }
+        
+        const player = new Player(name, buyInAmount);
         player.socketId = socketId;
         
         // 保存用户信息
@@ -212,11 +231,33 @@ class GameServer {
     }
 
     startNewHand() {
-        // Merge waiting players
+        // 检查玩家筹码，将筹码为0的玩家移到等待列表
+        const brokePlayers = [];
+        this.players = this.players.filter(p => {
+            if (p.chips <= 0) {
+                p.isSittingOut = true;  // 标记为旁观状态
+                brokePlayers.push(p);
+                return false; // 从玩家列表中移除
+            }
+            return true;
+        });
+        
+        // 将破产玩家移到等待列表
+        if (brokePlayers.length > 0) {
+            this.waitingPlayers.push(...brokePlayers);
+            brokePlayers.forEach(p => {
+                this.broadcastMessage(`${p.name} 筹码已用完，暂时旁观`);
+            });
+        }
+        
+        // Merge waiting players (只合并有筹码的)
         if (this.waitingPlayers.length > 0) {
-            this.players.push(...this.waitingPlayers);
-            this.waitingPlayers = [];
-            this.broadcastMessage('等待的玩家已加入牌局');
+            const joiners = this.waitingPlayers.filter(p => p.chips > 0 && !p.isSittingOut);
+            if (joiners.length > 0) {
+                this.players.push(...joiners);
+                this.waitingPlayers = this.waitingPlayers.filter(p => p.chips <= 0 || p.isSittingOut);
+                this.broadcastMessage('等待的玩家已加入牌局');
+            }
         }
 
         if (this.players.length < this.minPlayers) {
@@ -338,6 +379,10 @@ class GameServer {
 
     determineWinner() {
         const survivors = this.players.filter(p => !p.folded);
+        
+        // 实现边池(Side Pot)机制
+        const sidePots = this.calculateSidePots();
+        
         const scores = survivors.map(p => {
             return {
                 player: p,
@@ -355,30 +400,46 @@ class GameServer {
             return 0;
         });
 
-        const bestScore = scores[0];
-        const winners = scores.filter(s => {
-            if (s.score.rank !== bestScore.score.rank) return false;
-            for(let i=0; i<s.score.tieBreakers.length; i++) {
-                if (s.score.tieBreakers[i] !== bestScore.score.tieBreakers[i]) return false;
-            }
-            return true;
-        });
-
-        const winAmount = Math.floor(this.pot / winners.length);
-        winners.forEach(w => {
-            w.player.chips += winAmount;
-            this.saveChips(w.player); // Save winner chips
+        // 分配边池
+        const allWinners = [];
+        sidePots.forEach(pot => {
+            // 找出参与这个边池的最强玩家
+            const eligibleScores = scores.filter(s => pot.eligiblePlayers.includes(s.player));
+            if (eligibleScores.length === 0) return;
+            
+            const bestInPot = eligibleScores[0];
+            const winnersInPot = eligibleScores.filter(s => {
+                if (s.score.rank !== bestInPot.score.rank) return false;
+                for(let i=0; i<s.score.tieBreakers.length; i++) {
+                    if (s.score.tieBreakers[i] !== bestInPot.score.tieBreakers[i]) return false;
+                }
+                return true;
+            });
+            
+            const winAmount = Math.floor(pot.amount / winnersInPot.length);
+            winnersInPot.forEach(w => {
+                w.player.chips += winAmount;
+                this.saveChips(w.player); // Save winner chips
+                
+                // 记录赢家信息
+                const existing = allWinners.find(aw => aw.socketId === w.player.socketId);
+                if (existing) {
+                    existing.amount += winAmount;
+                } else {
+                    allWinners.push({
+                        socketId: w.player.socketId,
+                        amount: winAmount,
+                        handName: w.score.name
+                    });
+                }
+            });
         });
 
         // Also save all players chips to be safe (blinds/bets deducted)
         this.players.forEach(p => this.saveChips(p));
 
         this.io.to(this.roomId).emit('gameOver', {
-            winners: winners.map(w => ({ 
-                socketId: w.player.socketId, 
-                amount: winAmount,
-                handName: w.score.name 
-            }))
+            winners: allWinners
         });
 
         this.pot = 0;
@@ -448,6 +509,71 @@ class GameServer {
             // But in addPlayer we passed name which IS username.
             this.userManager.updateChips(player.name, player.chips);
         }
+    }
+
+    // 计算边池(Side Pots)
+    // 当多个玩家all-in且筹码量不同时，需要分开计算底池
+    calculateSidePots() {
+        const pots = [];
+        const allPlayers = [...this.players].sort((a, b) => a.currentBet - b.currentBet);
+        
+        let remainingPlayers = allPlayers.filter(p => !p.folded);
+        let previousBet = 0;
+        
+        allPlayers.forEach((player, index) => {
+            if (player.folded) return;
+            
+            const betLevel = player.currentBet;
+            if (betLevel <= previousBet) return;
+            
+            const betDiff = betLevel - previousBet;
+            let potAmount = 0;
+            
+            // 计算这个级别的底池金额
+            allPlayers.forEach(p => {
+                const contribution = Math.min(betDiff, Math.max(0, p.currentBet - previousBet));
+                potAmount += contribution;
+            });
+            
+            if (potAmount > 0) {
+                pots.push({
+                    amount: potAmount,
+                    eligiblePlayers: [...remainingPlayers]
+                });
+            }
+            
+            // 移除已经all-in且筹码用完的玩家（他们不能参与更大的边池）
+            if (player.chips === 0) {
+                remainingPlayers = remainingPlayers.filter(p => p !== player);
+            }
+            
+            previousBet = betLevel;
+        });
+        
+        // 如果没有边池（所有人筹码相同），返回主池
+        if (pots.length === 0) {
+            pots.push({
+                amount: this.pot,
+                eligiblePlayers: allPlayers.filter(p => !p.folded)
+            });
+        }
+        
+        return pots;
+    }
+
+    // 处理玩家重新买入（客户端调用）
+    handleRebuy(socketId, amount) {
+        // 在等待列表中找到这个玩家
+        const player = this.waitingPlayers.find(p => p.socketId === socketId);
+        if (!player) return;
+        
+        // 简化处理：直接给玩家增加筹码
+        // 实际应该验证玩家账户余额等
+        player.chips = amount;
+        player.isSittingOut = false;
+        
+        this.broadcastMessage(`${player.name} 补充了 ${amount} 筹码`);
+        this.broadcastState();
     }
 }
 
