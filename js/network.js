@@ -8,7 +8,12 @@ class NetworkManager {
     connect() {
         if (this.socket) return;
         
-        this.socket = io();
+        // 自动判断服务器地址：生产环境使用当前域名，开发环境使用 localhost
+        const serverUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000'
+            : ''; // 空字符串表示使用当前域名
+        
+        this.socket = io(serverUrl);
 
         // Generic event handler
         const handleEvent = (event, data) => {

@@ -1,0 +1,15 @@
+{
+  "name": "texas-holdem-poker",
+  "version": "3.3.2",
+  "description": "德州扑克 Web 版",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "start": "cd server && npm install && node server.js",
+    "install": "cd server && npm install"
+  },
+  "keywords": ["poker", "texas-holdem", "游戏"],
+  "author": "",
+  "license": "MIT"
+}
