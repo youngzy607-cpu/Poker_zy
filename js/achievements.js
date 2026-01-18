@@ -104,12 +104,16 @@ class AchievementManager {
             unlocked.forEach(u => totalReward += u.reward);
             profile.chips += totalReward;
             
-            // 同步到服务器
+            // 同步成就列表到服务器（数据隔离由服务器处理）
             await this._syncToServer(profile.achievements);
             
-            // 使用 updateChips 确保 loginData 也被更新（之前用 save 会导致 loginData 不同步）
+            // 使用 updateChips 更新筹码（同时更新 loginData 和本地缓存）
             DataManager.updateChips(profile.chips);
-            DataManager.save(profile);  // 保存成就列表等其他数据
+            
+            // 注意：不调用 DataManager.save(profile)，因为：
+            // 1. 成就列表已经通过 _syncToServer 保存到服务器
+            // 2. 筹码已经通过 updateChips 保存
+            // 3. save() 会把数据写入固定 key，不区分用户，会破坏数据隔离
             
             console.log(`🏆 成就奖励已发放: +${totalReward}, 新筹码: ${profile.chips}`);
             
