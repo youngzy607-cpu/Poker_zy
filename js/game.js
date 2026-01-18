@@ -55,8 +55,8 @@ class Game {
         const setupTourney = document.getElementById('lobby-setup-tourney');
 
         // 1. Open Mode Selection (Main Menu -> Lobby)
-        document.getElementById('btn-menu-single').addEventListener('click', () => {
-            const profile = DataManager.load();
+        document.getElementById('btn-menu-single').addEventListener('click', async () => {
+            const profile = await DataManager.load();
             
             // Bankruptcy Check (Global)
             if (profile.chips <= 0) {
@@ -77,12 +77,12 @@ class Game {
         });
 
         // 2. Select Cash Game
-        document.getElementById('btn-mode-cash').addEventListener('click', () => {
+        document.getElementById('btn-mode-cash').addEventListener('click', async () => {
             modeSelect.style.display = 'none';
             setupCash.style.display = 'block';
             
             // Setup Cash Slider
-            const profile = DataManager.load();
+            const profile = await DataManager.load();
             const slider = document.getElementById('buyin-amount');
             const display = document.getElementById('buyin-display');
             slider.min = 100;
@@ -119,8 +119,8 @@ class Game {
             this.initGame('cash', { opponentCount: count, buyIn: buyIn });
         });
 
-        document.getElementById('btn-start-tourney').addEventListener('click', () => {
-            const profile = DataManager.load();
+        document.getElementById('btn-start-tourney').addEventListener('click', async () => {
+            const profile = await DataManager.load();
             if (profile.chips < 500) {
                 alert('您的资金不足 $500，无法报名锦标赛！');
                 return;
@@ -135,8 +135,8 @@ class Game {
         });
 
         // Stats Button
-        document.getElementById('btn-menu-stats').addEventListener('click', () => {
-             const data = DataManager.load();
+        document.getElementById('btn-menu-stats').addEventListener('click', async () => {
+             const data = await DataManager.load();
              document.getElementById('stat-chips').innerText = data.chips;
              document.getElementById('stat-hands').innerText = data.stats.totalHands;
              document.getElementById('stat-wins').innerText = data.stats.wins;
@@ -166,9 +166,9 @@ class Game {
             document.getElementById('main-menu').style.display = 'flex';
         });
 
-        document.getElementById('btn-stats-reset').addEventListener('click', () => {
+        document.getElementById('btn-stats-reset').addEventListener('click', async () => {
             if(confirm('确定要重置所有战绩数据吗？这将清空您的筹码和历史记录。')) {
-                DataManager.reset();
+                await DataManager.reset();
                 alert('数据已重置');
                 document.getElementById('btn-stats-close').click();
             }
@@ -285,7 +285,7 @@ class Game {
         if (el) el.innerText = data.chips;
     }
 
-    initGame(mode, config) {
+    async initGame(mode, config) {
         this.mode = mode;
         const opponentCount = config.opponentCount;
         const buyInAmount = config.buyIn;
@@ -303,7 +303,7 @@ class Game {
         }
 
         // --- Bankroll Logic ---
-        const profile = DataManager.load();
+        const profile = await DataManager.load();
         
         if (this.mode === 'cash') {
             this.bankroll = profile.chips - buyInAmount;
@@ -1060,15 +1060,15 @@ class Game {
         document.getElementById('main-actions').style.display = 'flex';
     }
 
-    checkAchievements() {
-        const profile = DataManager.load();
-        const unlocked = AchievementManager.check(profile.stats, profile.chips);
+    async checkAchievements() {
+        const profile = await DataManager.load();
+        const unlocked = await AchievementManager.check(profile.stats, profile.chips);
         
         if (unlocked.length > 0) {
             unlocked.forEach(ach => {
                 this.ui.showAchievementToast(ach);
             });
-            const newProfile = DataManager.load();
+            const newProfile = await DataManager.load();
             const user = this.players[0];
             
             // 计算奖励增加量

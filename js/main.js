@@ -298,41 +298,43 @@ function renderAchievements() {
     const list = document.getElementById('achievements-list');
     list.innerHTML = '';
     
-    const profile = DataManager.load();
-    const unlockedIds = profile.achievements || [];
-    
-    // Sort: Unlocked first, then by ID
-    const sortedConfig = [...AchievementConfig].sort((a, b) => {
-        const aUnlocked = unlockedIds.includes(a.id);
-        const bUnlocked = unlockedIds.includes(b.id);
-        if (aUnlocked && !bUnlocked) return -1;
-        if (!aUnlocked && bUnlocked) return 1;
-        return 0; // Keep original order otherwise
-    });
+    DataManager.load().then(profile => {
+        const unlockedIds = profile.achievements || [];
+        
+        // Sort: Unlocked first, then by ID
+        const sortedConfig = [...AchievementConfig].sort((a, b) => {
+            const aUnlocked = unlockedIds.includes(a.id);
+            const bUnlocked = unlockedIds.includes(b.id);
+            if (aUnlocked && !bUnlocked) return -1;
+            if (!aUnlocked && bUnlocked) return 1;
+            return 0; // Keep original order otherwise
+        });
 
-    sortedConfig.forEach(ach => {
-        const isUnlocked = unlockedIds.includes(ach.id);
-        const progress = AchievementManager.getProgress(ach.id);
-        const percent = Math.min(100, (progress / ach.target) * 100);
-        
-        const div = document.createElement('div');
-        div.className = `achievement-item ${isUnlocked ? 'unlocked' : ''}`;
-        
-        div.innerHTML = `
-            <div class="ach-icon">🏆</div>
-            <div class="ach-content">
-                <div class="ach-title">${ach.title}</div>
-                <div class="ach-desc">${ach.desc}</div>
-                <div class="ach-progress-bar">
-                    <div class="ach-progress-fill" style="width: ${percent}%"></div>
-                </div>
-            </div>
-            <div class="ach-reward">
-                +${ach.reward}
-                <div class="ach-status">${isUnlocked ? '已达成' : `${progress}/${ach.target}`}</div>
-            </div>
-        `;
-        list.appendChild(div);
+        sortedConfig.forEach(ach => {
+            const isUnlocked = unlockedIds.includes(ach.id);
+            AchievementManager.getProgress(ach.id).then(progress => {
+                const percent = Math.min(100, (progress / ach.target) * 100);
+                
+                const div = document.createElement('div');
+                div.className = `achievement-item ${isUnlocked ? 'unlocked' : ''}`;
+                
+                div.innerHTML = `
+                    <div class="ach-icon">🏆</div>
+                    <div class="ach-content">
+                        <div class="ach-title">${ach.title}</div>
+                        <div class="ach-desc">${ach.desc}</div>
+                        <div class="ach-progress-bar">
+                            <div class="ach-progress-fill" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    <div class="ach-reward">
+                        +${ach.reward}
+                        <div class="ach-status">${isUnlocked ? '已达成' : `${progress}/${ach.target}`}</div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        });
     });
 }
 

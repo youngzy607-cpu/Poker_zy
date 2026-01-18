@@ -182,10 +182,11 @@ class OnlineGame {
              if(playerCards) playerCards.innerHTML = '';
              
              // Reset player chips display in menu
-             const data = DataManager.load();
-             const el = document.getElementById('menu-chip-count');
-             if (el) el.innerText = data.chips;
-             
+             DataManager.load().then(data => {
+                 const el = document.getElementById('menu-chip-count');
+                 if (el) el.innerText = data.chips;
+             });
+                         
              // 5. 重新绑定单机模式的事件监听器
              this.restoreSinglePlayerBindings();
         }
