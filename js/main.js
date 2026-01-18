@@ -280,6 +280,9 @@ function initAuthUI() {
         authOverlay.style.display = 'none';
         document.getElementById('main-menu').style.display = 'flex';
         
+        // 清除旧的本地战绩数据，确保不同账号数据不会混淆
+        localStorage.removeItem('texasholdem_profile_v1');
+        
         // 保存完整的登录信息（包含 username 和 chips）
         localStorage.setItem('loginData', JSON.stringify({
             username: user.username,

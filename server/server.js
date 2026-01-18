@@ -97,7 +97,7 @@ io.on('connection', (socket) => {
         
         const roomId = roomManager.createRoom(password);
         // Note: joinRoom now expects just roomId and password, user info comes from session/server
-        const result = roomManager.joinRoom(roomId, socket, userProfile.username, password, userProfile);
+        const result = await roomManager.joinRoom(roomId, socket, userProfile.username, password, userProfile);
         
         if (result.success) {
             socket.emit('roomCreated', { roomId });
@@ -115,7 +115,7 @@ io.on('connection', (socket) => {
         }
         
         const userProfile = await userManager.getUser(username);
-        const result = roomManager.joinRoom(roomId, socket, userProfile.username, password, userProfile);
+        const result = await roomManager.joinRoom(roomId, socket, userProfile.username, password, userProfile);
         
         if (!result.success) {
             if (result.error === 'INVALID_PASSWORD') {

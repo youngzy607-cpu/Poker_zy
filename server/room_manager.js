@@ -33,7 +33,7 @@ class RoomManager {
         return roomId;
     }
 
-    joinRoom(roomId, socket, playerName, password = null, userProfile = null) {
+    async joinRoom(roomId, socket, playerName, password = null, userProfile = null) {
         const game = this.rooms.get(roomId);
         if (!game) return { success: false, error: 'ROOM_NOT_FOUND' };
 
@@ -49,8 +49,8 @@ class RoomManager {
         socket.join(roomId);
         this.socketToRoom.set(socket.id, roomId);
 
-        // Add player to game
-        game.addPlayer(socket.id, playerName, userProfile);
+        // Add player to game (异步等待筹码初始化完成)
+        await game.addPlayer(socket.id, playerName, userProfile);
         
         this.broadcastRoomList();
         return { success: true };

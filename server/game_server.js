@@ -25,23 +25,25 @@ class GameServer {
         this.hostSocketId = null; // Who can start the game
     }
 
-    addPlayer(socketId, name, userProfile = null) {
+    async addPlayer(socketId, name, userProfile = null) {
         // 从用户账户中扣除1000筹码作为带入
         let buyInAmount = 1000;
         if (this.userManager && userProfile && userProfile.username) {
-            const user = this.userManager.getUser(userProfile.username);
+            const user = await this.userManager.getUser(userProfile.username);
             if (user && user.chips >= buyInAmount) {
                 // 扣除账户筹码
                 const newBalance = user.chips - buyInAmount;
                 console.log(`[联机带入] 用户: ${userProfile.username}, 原余额: ${user.chips}, 带入: ${buyInAmount}, 剩余: ${newBalance}`);
-                this.userManager.updateChips(userProfile.username, newBalance);
-            } else {
+                await this.userManager.updateChips(userProfile.username, newBalance);
+            } else if (user && user.chips > 0) {
                 // 账户余额不足，使用现有筹码
-                buyInAmount = user ? user.chips : 1000;
+                buyInAmount = user.chips;
                 console.log(`[联机带入] 用户: ${userProfile.username}, 余额不足，全部带入: ${buyInAmount}`);
-                if (this.userManager && user) {
-                    this.userManager.updateChips(userProfile.username, 0);
-                }
+                await this.userManager.updateChips(userProfile.username, 0);
+            } else {
+                // 新用户或筹码为0，给予默认筹码
+                buyInAmount = 1000;
+                console.log(`[联机带入] 用户: ${userProfile.username}, 无筹码，默认带入: ${buyInAmount}`);
             }
         }
         
