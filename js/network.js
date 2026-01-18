@@ -38,6 +38,10 @@ class NetworkManager {
             console.log('[NetworkManager] 已连接到服务器:', this.socket.id);
             this.isConnected = true;
             this.isConnecting = false;
+            
+            // 自动恢复session：从localStorage读取登录信息并重新认证
+            this._restoreSession();
+            
             handleEvent('connect');
         });
 
@@ -78,6 +82,22 @@ class NetworkManager {
 
     register(username, password, avatarId) {
         this.socket.emit('register', { username, password, avatarId });
+    }
+
+    // 恢复session：重新连接时自动认证
+    _restoreSession() {
+        const loginData = localStorage.getItem('loginData');
+        if (loginData) {
+            try {
+                const { username } = JSON.parse(loginData);
+                if (username) {
+                    console.log('[NetworkManager] 正在恢复session:', username);
+                    this.socket.emit('restoreSession', { username });
+                }
+            } catch (e) {
+                console.error('[NetworkManager] 恢复session失败:', e);
+            }
+        }
     }
 
     // --- Room Methods ---

@@ -57,6 +57,22 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Session恢复（重新连接时自动认证）
+    socket.on('restoreSession', async ({ username }) => {
+        if (username) {
+            // 验证用户是否存在
+            const user = await userManager.getUser(username);
+            if (user) {
+                sessions[socket.id] = username;
+                console.log(`✅ Session已恢复: ${username} (socket: ${socket.id})`);
+                socket.emit('sessionRestored', { success: true, username });
+            } else {
+                console.log(`⚠️ Session恢复失败: 用户不存在 ${username}`);
+                socket.emit('sessionRestored', { success: false });
+            }
+        }
+    });
+
     // Auto-login / Reconnect check (if needed later)
     // For now, client sends 'login' with saved creds
 
